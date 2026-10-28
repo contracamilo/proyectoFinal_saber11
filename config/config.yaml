@@ -1,0 +1,21 @@
+# Parámetros del proyecto. Cambiar aquí, no en el código.
+data:
+  source_url: https://www.datos.gov.co/resource/kgxf-xxbe.json
+  periodo: "20224"                 # Propuesta; confirmar en el EDA
+  cole_depto_ubicacion: "BOGOTÁ"   # Propuesta; confirmar en el EDA
+  page_size: 50000
+  raw_path: data/raw/saber11.csv
+  db_path: data/saber11.db
+
+target:
+  name: riesgo_bajo_desempeno
+  source_column: punt_global
+  threshold_percentile: 25         # 1 si punt_global < percentil 25
+
+split:
+  test_size: 0.15
+  val_size: 0.15
+  random_state: 42
+
+model:
+  artifact_path: models/model.joblib
