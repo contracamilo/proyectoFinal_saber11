@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# Datos y artefactos pesados (se regeneran con los scripts)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.db
+models/*.joblib
+
+# Sistema / IDE
+.DS_Store
+.vscode/
+.idea/
+.env
