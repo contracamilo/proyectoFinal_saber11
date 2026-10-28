@@ -22,7 +22,10 @@ git config user.email "correo-asociado-a-tu-github@..."   # si no coincide, GitH
 git switch dev_<tuUsuario>
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .            # permite "import saber11" desde notebooks, scripts y tests
 ```
+
+Las interfaces que cada capa debe respetar están en [`docs/arquitectura/contratos.md`](docs/arquitectura/contratos.md).
 
 ## Ciclo de trabajo
 

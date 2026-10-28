@@ -115,6 +115,7 @@ TODO: resumen; análisis completo en `docs/analisis_etico.md`.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 # TODO: comandos de ingesta, entrenamiento, evaluación y API
 pytest
 ```
