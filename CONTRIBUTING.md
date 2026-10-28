@@ -38,8 +38,9 @@ git commit -m "feat(data): descarga paginada desde datos.gov.co"
 git push origin dev_<tuUsuario>
 ```
 
-Luego abrir un Pull Request `dev_<tuUsuario>` → `develop` y fusionarlo con **"Create a merge commit"**.
-**No usar "Squash and merge" ni "Rebase and merge"**: el squash borra la autoría individual de los commits.
+Luego abrir un Pull Request `dev_<tuUsuario>` → `develop` con **Camilo (`contracamilo`) como reviewer**. Camilo revisa, aprueba y hace el merge con **"Create a merge commit"** (el squash y el rebase están desactivados porque borran la autoría individual de los commits).
+
+**Nunca borres tu rama** después del merge: el profesor la busca para verificar tu aporte.
 
 ## Convención de commits
 
@@ -58,4 +59,12 @@ Commits pequeños y frecuentes: el profesor penaliza repositorios con un solo co
 ## Reglas
 - Nunca hacer commit directo en `develop` ni en `main`.
 - No subir datos crudos ni el `.db` (están en `.gitignore`); sí subir figuras y reportes.
-- Cada PR debe ser revisado por al menos otro integrante antes del merge.
+- Cada PR a `develop` o `main` necesita la aprobación de Camilo (`.github/CODEOWNERS`).
+
+## Reglas configuradas en GitHub
+
+| Ramas | Regla |
+|---|---|
+| `develop`, `main` | Solo se modifican por Pull Request con 1 aprobación del code owner (Camilo). Un nuevo push invalida la aprobación anterior. Sin force push ni borrado. Solo el admin puede saltarse la revisión, y únicamente desde un PR. |
+| `dev_*` | No se pueden borrar ni reescribir con force push: son la evidencia del trabajo de cada integrante. |
+| Repositorio | Solo "Create a merge commit"; squash y rebase desactivados. |
