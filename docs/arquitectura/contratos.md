@@ -54,7 +54,7 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 #   Selecciona por F1 de la clase 1 en validación.
 #   Guarda:
 #     models/model.joblib     -> sklearn Pipeline([("prep", ColumnTransformer), ("clf", estimador)])
-#     models/model_meta.json  -> {"model_name", "threshold_punt_global", "features", "trained_at", "metrics_val"}
+#     models/model_meta.json  -> {"model_name", "threshold_punt_global", "features", "trained_at", "sklearn_version", "metrics_val"}
 
 # evaluate.py — CLI: python -m saber11.models.evaluate
 #   Evalúa en test el modelo seleccionado y el baseline.

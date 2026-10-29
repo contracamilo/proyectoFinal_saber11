@@ -158,7 +158,7 @@ TODO: escenarios medibles (p. ej. *p95 de `POST /predict` < 300 ms con 50 solici
 |---|---|---|---|
 | [001](docs/adr/0001-lenguaje-framework-estilo.md) | Python + FastAPI + arquitectura en capas | Camilo | Aceptada |
 | 002 | Selección del modelo | Richard | Pendiente |
-| 003 | Almacenamiento y despliegue | Camilo | Pendiente |
+| [003](docs/adr/0003-almacenamiento-despliegue.md) | SQLite + joblib + uvicorn local | Camilo | Aceptada |
 | 004 | Estrategia de separación de datos | Daniel | Pendiente |
 
 ## 6. Modelo
