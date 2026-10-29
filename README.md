@@ -30,8 +30,15 @@ Las secretarías de educación y los equipos de orientación de los colegios nec
 Este proyecto propone un modelo de clasificación que, a partir de información de contexto disponible antes de la prueba (características del colegio y condiciones del hogar), estima el **riesgo de bajo desempeño** en Saber 11, para apoyar decisiones **agregadas** de asignación de recursos.
 
 - **Pregunta:** ¿qué tan bien puede un modelo sencillo identificar contextos con riesgo de bajo desempeño usando solo variables previas a la prueba?
-- **Usuarios (user persona):** TODO — analista de la secretaría de educación, orientador escolar.
 - **Variable objetivo:** `riesgo_bajo_desempeno` (1 si `punt_global` < umbral definido en el EDA; propuesta: percentil 25).
+
+### User persona
+
+| Persona | Contexto | Necesidad | Cómo usa el sistema |
+|---|---|---|---|
+| **Marta, analista de la Secretaría de Educación de Bogotá** | Reparte cada año un presupuesto limitado de tutorías entre cientos de colegios oficiales. | Saber con anticipación dónde se concentra el riesgo para no asignar recursos "a ciegas". | Consulta el riesgo agregado y las métricas del modelo, incluidas las de equidad, antes de decidir. |
+| **Jorge, orientador de un colegio oficial en Kennedy** | Acompaña a más de 300 estudiantes de grado 11 con poco tiempo. | Priorizar talleres de preparación y conversaciones con familias. | Consulta el riesgo de perfiles de contexto típicos de su colegio para planear acompañamiento grupal, no para etiquetar a estudiantes. |
+| **Equipo de ciencia de datos** | Mantiene el modelo. | Reentrenar con nuevos periodos y vigilar que el modelo no sea injusto con ningún grupo. | Ejecuta el pipeline y revisa los reportes de métricas y equidad. |
 
 ## 2. Alcance: qué hará y qué no hará
 *Responsable: Camilo*
@@ -43,7 +50,10 @@ Este proyecto propone un modelo de clasificación que, a partir de información 
 | Expone una API para consultar el riesgo de un perfil de contexto | Usa datos personales identificables |
 | Reporta métricas globales y por grupo poblacional | Usa los puntajes de la prueba como variables de entrada |
 
-TODO: confirmar periodo y región tras el EDA.
+**Supuestos y restricciones**
+- Alcance de datos: periodo `20224`, colegios ubicados en Bogotá, configurable en `config/config.yaml`. Se confirma con el EDA.
+- Solo herramientas open source; ejecución local, sin servicios en la nube.
+- Es un *product concept*: no incluye autenticación, interfaz gráfica propia ni despliegue productivo. Se documentan como evolución futura.
 
 ## 3. Datos
 *Responsable: Danielo*
@@ -55,13 +65,85 @@ TODO: confirmar periodo y región tras el EDA.
 *Responsable: Camilo*
 
 ### 4.1 Estilo arquitectónico
-Arquitectura **en capas**: Datos → Procesamiento → Modelo → Servicio → Presentación. Ver [`src/saber11/`](src/saber11/).
+Arquitectura **en capas**: cada capa tiene una sola responsabilidad y solo usa la capa inmediatamente inferior, a través de las interfaces de [`docs/arquitectura/contratos.md`](docs/arquitectura/contratos.md). La justificación está en el [ADR-001](docs/adr/0001-lenguaje-framework-estilo.md).
+
+| Capa | Responsabilidad | Código |
+|---|---|---|
+| Datos | Descargar y almacenar los resultados | `src/saber11/data/` |
+| Procesamiento | Limpiar, construir el target, separar y transformar | `src/saber11/features/` |
+| Modelo | Entrenar, evaluar y medir equidad | `src/saber11/models/` |
+| Servicio | Exponer predicciones y métricas por HTTP | `src/saber11/api/` |
+| Presentación | Probar la API desde el navegador | Swagger UI en `/docs` |
 
 ### 4.2 Diagrama C4 — Contexto
-Ver [`docs/arquitectura/c4-contexto.md`](docs/arquitectura/c4-contexto.md).
+Usuarios, sistema y fuentes externas de datos. Lo gris y punteado está fuera del alcance actual. Detalle en [`docs/arquitectura/c4-contexto.md`](docs/arquitectura/c4-contexto.md).
+
+```mermaid
+flowchart LR
+    analista(["👤 Analista de secretaría de educación<br/><i>Focaliza programas de refuerzo<br/>con el riesgo agregado</i>"])
+    orientador(["👤 Orientador escolar<br/><i>Consulta el riesgo de un perfil<br/>de contexto de su colegio</i>"])
+    equipo(["👤 Equipo de ciencia de datos<br/><i>Entrena, evalúa y audita el modelo</i>"])
+
+    sistema[["<b>Sistema de riesgo Saber 11</b><br/>Descarga datos abiertos, entrena un clasificador<br/>y expone predicciones y métricas"]]
+
+    datosgov[("<b>datos.gov.co — ICFES</b><br/>[Sistema externo]<br/>Resultados únicos Saber 11<br/>API Socrata kgxf-xxbe")]
+    simat[("<b>SIMAT</b><br/>[Sistema externo — futuro v2]<br/>Datos de matrícula")]
+
+    analista -- "Consulta riesgo y métricas<br/>[HTTPS/JSON]" --> sistema
+    orientador -- "Consulta riesgo de un perfil<br/>[HTTPS/JSON]" --> sistema
+    equipo -- "Ejecuta ingesta, entrenamiento<br/>y evaluación [CLI]" --> sistema
+    sistema -- "Descarga resultados del periodo<br/>configurado [HTTPS/JSON]" --> datosgov
+    sistema -. "Consumiría datos de matrícula<br/>[futuro]" .-> simat
+
+    classDef persona fill:#08427b,color:#fff,stroke:#052e56
+    classDef interno fill:#1168bd,color:#fff,stroke:#0b4884
+    classDef externo fill:#999999,color:#fff,stroke:#6b6b6b
+    classDef futuro fill:#d9d9d9,color:#555,stroke:#9e9e9e,stroke-dasharray: 5 5
+    class analista,orientador,equipo persona
+    class sistema interno
+    class datosgov externo
+    class simat futuro
+```
 
 ### 4.3 Diagrama C4 — Contenedores
-TODO.
+Piezas ejecutables y de almacenamiento, con su tecnología. Detalle en [`docs/arquitectura/c4-contenedores.md`](docs/arquitectura/c4-contenedores.md).
+
+```mermaid
+flowchart LR
+    usuario(["👤 Analista / Orientador"])
+    equipo(["👤 Equipo de ciencia de datos"])
+    datosgov[("<b>datos.gov.co</b><br/>[Sistema externo]<br/>API Socrata")]
+
+    subgraph sistema["Sistema de riesgo Saber 11"]
+        direction LR
+        ingesta["<b>Ingesta</b><br/>[Python, requests]<br/>Descarga paginada e idempotente"]
+        db[("<b>Base de datos</b><br/>[SQLite]<br/>Tabla resultados")]
+        pipeline["<b>Pipeline de entrenamiento</b><br/>[Python, pandas, scikit-learn]<br/>Preprocesa, entrena, evalúa<br/>y mide equidad"]
+        artefactos[("<b>Artefactos</b><br/>[Archivos joblib / JSON / MD]<br/>model.joblib, metrics.json,<br/>reportes y figuras")]
+        api["<b>API de predicción</b><br/>[Python, FastAPI, uvicorn]<br/>/health, /predict, /metrics"]
+        docs["<b>Documentación interactiva</b><br/>[Swagger UI de FastAPI]"]
+    end
+
+    equipo -- "Ejecuta [CLI]" --> ingesta
+    equipo -- "Ejecuta [CLI]" --> pipeline
+    ingesta -- "GET paginado [HTTPS/JSON]" --> datosgov
+    ingesta -- "Guarda filas [SQL]" --> db
+    pipeline -- "Lee datos [SQL]" --> db
+    pipeline -- "Escribe modelo y métricas [archivos]" --> artefactos
+    api -- "Carga al iniciar [joblib/JSON]" --> artefactos
+    usuario -- "Consulta [HTTPS/JSON]" --> api
+    usuario -- "Prueba la API [navegador]" --> docs
+    docs -- "Llama [HTTP/JSON]" --> api
+
+    classDef persona fill:#08427b,color:#fff,stroke:#052e56
+    classDef contenedor fill:#438dd5,color:#fff,stroke:#2e6295
+    classDef almacen fill:#438dd5,color:#fff,stroke:#2e6295
+    classDef externo fill:#999999,color:#fff,stroke:#6b6b6b
+    class usuario,equipo persona
+    class ingesta,pipeline,api,docs contenedor
+    class db,artefactos almacen
+    class datosgov externo
+```
 
 ### 4.4 Componentes
 TODO.
@@ -74,7 +156,7 @@ TODO: escenarios medibles (p. ej. *p95 de `POST /predict` < 300 ms con 50 solici
 
 | ADR | Decisión | Responsable | Estado |
 |---|---|---|---|
-| 001 | Lenguaje, framework y estilo arquitectónico | Camilo | Pendiente |
+| [001](docs/adr/0001-lenguaje-framework-estilo.md) | Python + FastAPI + arquitectura en capas | Camilo | Aceptada |
 | 002 | Selección del modelo | Richardo | Pendiente |
 | 003 | Almacenamiento y despliegue | Camilo | Pendiente |
 | 004 | Estrategia de separación de datos | Danielo | Pendiente |
