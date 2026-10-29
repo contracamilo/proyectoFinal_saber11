@@ -149,7 +149,20 @@ flowchart LR
 TODO.
 
 ### 4.5 Drivers y atributos de calidad
-TODO: escenarios medibles (p. ej. *p95 de `POST /predict` < 300 ms con 50 solicitudes concurrentes*) y tácticas aplicadas.
+Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectura/drivers-calidad.md`](docs/arquitectura/drivers-calidad.md).
+
+**Restricciones principales:** solo open source, ejecución local, datos tabulares de una API pública, modelo básico de ML, 6 días de plazo y solo variables previas a la prueba.
+
+| Atributo | Escenario medible | Táctica principal |
+|---|---|---|
+| Rendimiento | p95 de `POST /predict` < 300 ms con 10 clientes concurrentes (500 solicitudes) | Modelo cargado una sola vez al iniciar; entrenamiento separado de la predicción |
+| Confiabilidad | Entrada inválida → 422 con el campo que falla; 0 % de respuestas 500 | Validación con Pydantic |
+| Integridad de datos | Re-ejecutar la ingesta deja el mismo número de filas | Ingesta idempotente |
+| Disponibilidad de la fuente | Hasta 3 reintentos por página con timeout de 120 s | Reintentos + copia local de los datos |
+| Reproducibilidad | Mismas métricas de test en cualquier equipo | Semilla fija y parámetros en `config.yaml` |
+| Validez del modelo | El pipeline falla si una variable de entrada contiene el resultado de la prueba | Lista blanca de variables + preprocesamiento dentro del `Pipeline` |
+| Equidad | Brecha de recall > 0,10 entre grupos se reporta y se discute | Métricas por grupo sensible |
+| Mantenibilidad | Cambiar de modelo no modifica la API | Contratos entre capas |
 
 ## 5. Decisiones de arquitectura (ADR)
 Índice en [`docs/adr/`](docs/adr/README.md).
