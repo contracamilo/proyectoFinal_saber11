@@ -77,8 +77,8 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 }
 ```
 
-## Capa de servicio — `saber11/api/main.py` (Camilo)
-Carga `models/model.joblib` una sola vez al iniciar y expone:
+## Capa de servicio — `saber11/api/` (Camilo)
+`main.py` (rutas), `schemas.py` (Pydantic) y `model_service.py` (carga y predicción). Carga `models/model.joblib` una sola vez al iniciar y expone:
 
 | Método | Ruta | Entrada | Salida |
 |---|---|---|---|
