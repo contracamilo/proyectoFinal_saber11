@@ -9,8 +9,8 @@ El profesor evalúa **solo la rama `develop`** y verifica el aporte de cada inte
 | `main` | Rama inicial; no se trabaja aquí. |
 | `develop` | Consolidación del proyecto. **Rama que revisa el profesor.** Solo recibe merges de PRs. |
 | `dev_crivera52` | Camilo Rivera |
-| `dev_dcharry55` | Danielo Charry |
-| `dev_rcaicedo05` | Richardo Caicedo |
+| `dev_dcharry55` | Daniel Charry |
+| `dev_rcaicedo05` | Richard Caicedo |
 
 ## Configuración inicial (una sola vez)
 

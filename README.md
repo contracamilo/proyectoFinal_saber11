@@ -1,7 +1,7 @@
 # Proyecto final: Predicción de riesgo de bajo desempeño en Saber 11
 
 > Product concept de Machine Learning — Teoría de la Computación, Universidad de La Salle (2026-2).
-> Grupo 3: Camilo Rivera Quintero (`dev_crivera52`), Danielo Charry (`dev_dcharry55`), Richardo Caicedo (`dev_rcaicedo05`).
+> Grupo 3: Camilo Rivera Quintero (`dev_crivera52`), Daniel Charry (`dev_dcharry55`), Richard Caicedo (`dev_rcaicedo05`).
 
 ## Tabla de contenido
 1. [Problema y contexto](#1-problema-y-contexto)
@@ -56,7 +56,7 @@ Este proyecto propone un modelo de clasificación que, a partir de información 
 - Es un *product concept*: no incluye autenticación, interfaz gráfica propia ni despliegue productivo. Se documentan como evolución futura.
 
 ## 3. Datos
-*Responsable: Danielo*
+*Responsable: Daniel*
 
 - **Fuente:** [Resultados únicos Saber 11 — datos.gov.co](https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe) (ICFES), API Socrata `kgxf-xxbe`.
 - TODO: licencia, número de registros, diccionario de variables, tabla de 5 filas de ejemplo, resumen del EDA.
@@ -157,17 +157,17 @@ TODO: escenarios medibles (p. ej. *p95 de `POST /predict` < 300 ms con 50 solici
 | ADR | Decisión | Responsable | Estado |
 |---|---|---|---|
 | [001](docs/adr/0001-lenguaje-framework-estilo.md) | Python + FastAPI + arquitectura en capas | Camilo | Aceptada |
-| 002 | Selección del modelo | Richardo | Pendiente |
+| 002 | Selección del modelo | Richard | Pendiente |
 | 003 | Almacenamiento y despliegue | Camilo | Pendiente |
-| 004 | Estrategia de separación de datos | Danielo | Pendiente |
+| 004 | Estrategia de separación de datos | Daniel | Pendiente |
 
 ## 6. Modelo
-*Responsable: Richardo*
+*Responsable: Richard*
 
 TODO: modelo seleccionado, justificación, hiperparámetros, entrenamiento.
 
 ## 7. Calidad y evaluación
-*Responsables: Richardo (métricas), Danielo (separación de datos), Camilo (criterios de aceptación)*
+*Responsables: Richard (métricas), Daniel (separación de datos), Camilo (criterios de aceptación)*
 
 - **Estrategia de separación:** TODO (ver ADR-004).
 - **Modelo de referencia (baseline):** TODO.
@@ -176,7 +176,7 @@ TODO: modelo seleccionado, justificación, hiperparámetros, entrenamiento.
 - **Criterios de aceptación del software:** TODO.
 
 ## 8. Análisis ético
-*Responsable: Richardo*
+*Responsable: Richard*
 
 TODO: resumen; análisis completo en `docs/analisis_etico.md`.
 

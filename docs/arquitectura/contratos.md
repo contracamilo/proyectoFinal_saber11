@@ -14,12 +14,12 @@ flowchart LR
     SVC -->|HTTP/JSON| U((Usuario))
 ```
 
-## Configuración — `saber11/config.py` (Danielo)
+## Configuración — `saber11/config.py` (Daniel)
 ```python
 load_config(path: str = "config/config.yaml") -> dict
 ```
 
-## Capa de datos — `saber11/data/` (Danielo)
+## Capa de datos — `saber11/data/` (Daniel)
 ```python
 # ingest.py
 download(cfg: dict, force: bool = False) -> pathlib.Path
@@ -34,7 +34,7 @@ read_raw(cfg: dict) -> pd.DataFrame   # Lee la tabla "resultados".
 #   CLI: python -m saber11.data.repository
 ```
 
-## Capa de procesamiento — `saber11/features/preprocessing.py` (Danielo)
+## Capa de procesamiento — `saber11/features/preprocessing.py` (Daniel)
 ```python
 TARGET: str = "riesgo_bajo_desempeno"
 FEATURES: list[str]       # Solo variables previas a la prueba (cole_*, fami_*, estu_genero, edad).
@@ -47,7 +47,7 @@ split(df: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataF
 build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTransformer
 ```
 
-## Capa de modelo — `saber11/models/` (Richardo)
+## Capa de modelo — `saber11/models/` (Richard)
 ```python
 # train.py — CLI: python -m saber11.models.train
 #   Entrena baseline (DummyClassifier), LogisticRegression y DecisionTreeClassifier.
