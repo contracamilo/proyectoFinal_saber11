@@ -41,7 +41,7 @@ FEATURES: list[str]       # Solo variables previas a la prueba (cole_*, fami_*, 
 SENSITIVE: list[str] = ["estu_genero", "fami_estratovivienda", "cole_naturaleza", "cole_area_ubicacion"]
 LEAKAGE_PREFIXES: tuple = ("punt_", "desemp_", "percentil_")   # Nunca son entrada del modelo.
 
-clean(df: pd.DataFrame) -> pd.DataFrame
+clean(df: pd.DataFrame) -> pd.DataFrame   # Deja una fila por estu_consecutivo: la fuente trae copias idénticas.
 build_target(df: pd.DataFrame, percentile: int) -> tuple[pd.DataFrame, float]   # (df con TARGET, umbral de punt_global)
 split(df: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]   # train, val, test estratificados
 build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTransformer

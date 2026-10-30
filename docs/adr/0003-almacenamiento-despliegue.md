@@ -7,7 +7,7 @@
 ## Contexto
 El sistema guarda dos tipos de información con ciclos de vida distintos:
 
-1. **Datos de entrada:** unas 152.000 filas de resultados Saber 11 (periodo 20224, Bogotá), con ~20 columnas útiles. Se escriben una vez por periodo y se leen cada vez que se entrena.
+1. **Datos de entrada:** 152.584 filas de resultados Saber 11 (periodo 20224, Bogotá), que corresponden a 76.253 estudiantes únicos porque la fuente trae copias idénticas, con ~20 columnas útiles. Se escriben una vez por periodo y se leen cada vez que se entrena.
 2. **Artefactos del modelo:** el `Pipeline` entrenado (preprocesador + clasificador), sus metadatos y las métricas. El entrenamiento los genera y la API los lee al iniciar.
 
 Drivers que condicionan la decisión:
@@ -53,7 +53,7 @@ Drivers que condicionan la decisión:
 | Instalación en los tres equipos | ✅ Solo `pip install -r requirements.txt` |
 | Reproducibilidad desde cero | ✅ `ingest` → `repository` → `train` regeneran datos y modelo |
 | Idempotencia de la carga | ✅ Reemplazo completo de la tabla `resultados` |
-| Rendimiento de lectura para entrenar | ✅ ~152.000 filas se leen en segundos |
+| Rendimiento de lectura para entrenar | ✅ ~152.000 filas crudas se leen en segundos |
 | Latencia de predicción | ✅ El modelo se carga **una vez** al iniciar la API |
 
 ## Decisión
