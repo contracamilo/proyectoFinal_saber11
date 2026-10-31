@@ -11,7 +11,6 @@ import httpx
 from saber11.api.schemas import PerfilEntrada
 
 UMBRAL_P95_MS = 300
-RUTA_SALIDA = Path("reports/latencia.json")
 
 
 def _medir(cliente: httpx.Client, perfil: dict) -> tuple[float, int]:
@@ -46,9 +45,10 @@ if __name__ == "__main__":
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--solicitudes", type=int, default=500)
     parser.add_argument("--clientes", type=int, default=10)
+    parser.add_argument("--salida", type=Path, default=Path("reports/latencia.json"))
     args = parser.parse_args()
 
     resumen = medir(args.url, args.solicitudes, args.clientes)
-    RUTA_SALIDA.parent.mkdir(exist_ok=True)
-    RUTA_SALIDA.write_text(json.dumps(resumen, indent=2), encoding="utf-8")
+    args.salida.parent.mkdir(exist_ok=True)
+    args.salida.write_text(json.dumps(resumen, indent=2), encoding="utf-8")
     print(json.dumps(resumen, indent=2))
