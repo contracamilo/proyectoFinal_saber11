@@ -1,0 +1,9 @@
+{
+  "solicitudes": 500,
+  "clientes": 10,
+  "errores": 0,
+  "p50_ms": 903.64,
+  "p95_ms": 1273.44,
+  "max_ms": 1794.12,
+  "cumple_qa1": false
+}

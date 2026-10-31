@@ -1,3 +1,4 @@
+"""Limpieza, construcción del target, separación y preprocesamiento."""
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
@@ -58,6 +59,7 @@ def build_target(df: pd.DataFrame, percentile: int) -> tuple[pd.DataFrame, float
     umbral = float(df["punt_global"].quantile(percentile / 100))
     df[TARGET] = (df["punt_global"] < umbral).astype(int)
     return df, umbral
+
 
 def split(df: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Separa en train, validación y test de forma estratificada."""

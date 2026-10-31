@@ -1,0 +1,13 @@
+# Despliegue de la API en Render (plan gratuito). Ver docs/adr/0003-almacenamiento-despliegue.md
+services:
+  - type: web
+    name: saber11-api
+    runtime: python
+    plan: free
+    branch: develop
+    buildCommand: pip install -r requirements-deploy.txt && pip install .
+    startCommand: uvicorn saber11.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.15

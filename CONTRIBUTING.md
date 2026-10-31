@@ -20,7 +20,8 @@ cd proyectoFinal_saber11
 git config user.name "Tu Nombre"
 git config user.email "correo-asociado-a-tu-github@..."   # si no coincide, GitHub no te atribuye los commits
 git switch dev_<tuUsuario>
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate    # Windows (PowerShell): .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 pip install -e .            # permite "import saber11" desde notebooks, scripts y tests
 ```

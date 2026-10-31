@@ -10,7 +10,7 @@ flowchart LR
 
     subgraph sistema["Sistema de riesgo Saber 11"]
         direction LR
-        ingesta["<b>Ingesta</b><br/>[Python, requests]<br/>Descarga paginada e idempotente"]
+        ingesta["<b>Ingesta y carga</b><br/>[Python, requests, sqlite3]<br/>Descarga paginada e idempotente,<br/>guarda el CSV y carga SQLite"]
         db[("<b>Base de datos</b><br/>[SQLite]<br/>Tabla resultados")]
         pipeline["<b>Pipeline de entrenamiento</b><br/>[Python, pandas, scikit-learn]<br/>Preprocesa, entrena, evalúa<br/>y mide equidad"]
         artefactos[("<b>Artefactos</b><br/>[Archivos joblib / JSON / MD]<br/>model.joblib, metrics.json,<br/>reportes y figuras")]
@@ -21,7 +21,7 @@ flowchart LR
     equipo -- "Ejecuta [CLI]" --> ingesta
     equipo -- "Ejecuta [CLI]" --> pipeline
     ingesta -- "GET paginado [HTTPS/JSON]" --> datosgov
-    ingesta -- "Guarda filas [SQL]" --> db
+    ingesta -- "Carga el CSV en la tabla [SQL]" --> db
     pipeline -- "Lee datos [SQL]" --> db
     pipeline -- "Escribe modelo y métricas [archivos]" --> artefactos
     api -- "Carga al iniciar [joblib/JSON]" --> artefactos
@@ -41,11 +41,11 @@ flowchart LR
 
 | Contenedor | Tecnología | Responsabilidad | Capa | Código |
 |---|---|---|---|---|
-| Ingesta | Python, requests | Descarga los resultados del periodo y la región configurados. Re-ejecutarla no duplica datos. | Datos | `src/saber11/data/ingest.py` |
-| Base de datos | SQLite | Guarda los datos crudos en la tabla `resultados`. | Datos | `src/saber11/data/repository.py`, `data/saber11.db` |
+| Ingesta y carga | Python, requests, sqlite3 | Descarga los resultados del periodo y la región configurados a un CSV y los carga en SQLite. Re-ejecutarla no duplica datos. | Datos | `src/saber11/data/ingest.py`, `src/saber11/data/repository.py` |
+| Base de datos | SQLite | Guarda los datos crudos en la tabla `resultados`. | Datos | `data/saber11.db` |
 | Pipeline de entrenamiento | Python, pandas, scikit-learn | Limpia, construye el target, separa los datos, entrena, evalúa y calcula métricas por grupo. | Procesamiento y modelo | `src/saber11/features/`, `src/saber11/models/` |
 | Artefactos | joblib, JSON, Markdown, PNG | Modelo entrenado, métricas y reportes. Son el contrato entre el entrenamiento y la API. | Modelo | `models/`, `reports/` |
-| API de predicción | Python, FastAPI, uvicorn | Valida la entrada, predice con el modelo cargado en memoria y expone las métricas. | Servicio | `src/saber11/api/main.py` |
+| API de predicción | Python, FastAPI, uvicorn (publicada en Render) | Valida la entrada, predice con el modelo cargado en memoria y expone las métricas. | Servicio | `src/saber11/api/main.py` |
 | Documentación interactiva | Swagger UI (incluida en FastAPI) | Permite probar la API desde el navegador sin escribir código. | Presentación | `/docs` |
 
 **Decisiones relacionadas:** [ADR-001](../adr/0001-lenguaje-framework-estilo.md) (Python, FastAPI y capas) y ADR-003 (almacenamiento y despliegue).

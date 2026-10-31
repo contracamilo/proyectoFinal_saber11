@@ -41,7 +41,7 @@ FEATURES: list[str]       # Solo variables previas a la prueba (cole_*, fami_*, 
 SENSITIVE: list[str] = ["estu_genero", "fami_estratovivienda", "cole_naturaleza", "cole_area_ubicacion"]
 LEAKAGE_PREFIXES: tuple = ("punt_", "desemp_", "percentil_")   # Nunca son entrada del modelo.
 
-clean(df: pd.DataFrame) -> pd.DataFrame
+clean(df: pd.DataFrame) -> pd.DataFrame   # Deja una fila por estu_consecutivo: la fuente trae copias idénticas.
 build_target(df: pd.DataFrame, percentile: int) -> tuple[pd.DataFrame, float]   # (df con TARGET, umbral de punt_global)
 split(df: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]   # train, val, test estratificados
 build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTransformer
@@ -54,6 +54,7 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 #   Selecciona por F1 de la clase 1 en validación.
 #   Guarda:
 #     models/model.joblib     -> sklearn Pipeline([("prep", ColumnTransformer), ("clf", estimador)])
+#     models/<nombre>.joblib  -> Los tres candidatos (baseline, logreg, tree), para compararlos en test.
 #     models/model_meta.json  -> {"model_name", "threshold_punt_global", "features", "trained_at", "sklearn_version", "metrics_val"}
 
 # evaluate.py — CLI: python -m saber11.models.evaluate
@@ -62,6 +63,7 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 
 # fairness.py — CLI: python -m saber11.models.fairness
 #   Métricas por cada grupo de SENSITIVE -> reports/equidad.md y reports/equidad.csv
+#   Compara el modelo con uno entrenado sin las variables de SENSITIVE.
 ```
 
 `reports/metrics.json`:
@@ -83,5 +85,5 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 | Método | Ruta | Entrada | Salida |
 |---|---|---|---|
 | GET | `/health` | — | `{"status": "ok", "model": "<model_name>"}` |
-| POST | `/predict` | JSON con las columnas de `FEATURES` | `{"riesgo": 0/1, "probabilidad": float}` |
+| POST | `/predict` | JSON con las columnas de `FEATURES` | `{"riesgo": 0/1, "probabilidad": float}`. `probabilidad` está calibrada con los parámetros de `model_meta.json` |
 | GET | `/metrics` | — | Contenido de `reports/metrics.json` |
