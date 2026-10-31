@@ -1,0 +1,33 @@
+{
+  "model_name": "logreg",
+  "threshold_punt_global": 234.0,
+  "features": [
+    "cole_area_ubicacion",
+    "cole_bilingue",
+    "cole_calendario",
+    "cole_caracter",
+    "cole_genero",
+    "cole_jornada",
+    "cole_naturaleza",
+    "estu_genero",
+    "fami_cuartoshogar",
+    "fami_educacionmadre",
+    "fami_educacionpadre",
+    "fami_estratovivienda",
+    "fami_personashogar",
+    "fami_tieneautomovil",
+    "fami_tienecomputador",
+    "fami_tieneinternet",
+    "fami_tienelavadora",
+    "edad"
+  ],
+  "trained_at": "2026-10-31T09:59:54.329916+00:00",
+  "sklearn_version": "1.9.1",
+  "metrics_val": {
+    "accuracy": 0.655359328553943,
+    "precision": 0.38996889580093314,
+    "recall": 0.7138790035587189,
+    "f1": 0.5044003017349761,
+    "roc_auc": 0.7485765743247591
+  }
+}

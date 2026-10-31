@@ -52,7 +52,7 @@ Este proyecto propone un modelo de clasificación que, a partir de información 
 
 **Supuestos y restricciones**
 - Alcance de datos: periodo `20224`, colegios ubicados en Bogotá, configurable en `config/config.yaml`.
-- Solo herramientas open source; ejecución local, sin servicios en la nube.
+- Solo herramientas open source, sin AWS ni servicios de pago. El entrenamiento corre en local y la API se publica en el plan gratuito de Render ([ADR-003](docs/adr/0003-almacenamiento-despliegue.md)).
 - Es un *product concept*: no incluye autenticación, interfaz gráfica propia ni despliegue productivo. Se documentan como evolución futura.
 
 ## 3. Datos
@@ -170,7 +170,7 @@ flowchart LR
 
     subgraph sistema["Sistema de riesgo Saber 11"]
         direction LR
-        ingesta["<b>Ingesta</b><br/>[Python, requests]<br/>Descarga paginada e idempotente"]
+        ingesta["<b>Ingesta y carga</b><br/>[Python, requests, sqlite3]<br/>Descarga paginada e idempotente,<br/>guarda el CSV y carga SQLite"]
         db[("<b>Base de datos</b><br/>[SQLite]<br/>Tabla resultados")]
         pipeline["<b>Pipeline de entrenamiento</b><br/>[Python, pandas, scikit-learn]<br/>Preprocesa, entrena, evalúa<br/>y mide equidad"]
         artefactos[("<b>Artefactos</b><br/>[Archivos joblib / JSON / MD]<br/>model.joblib, metrics.json,<br/>reportes y figuras")]
@@ -181,7 +181,7 @@ flowchart LR
     equipo -- "Ejecuta [CLI]" --> ingesta
     equipo -- "Ejecuta [CLI]" --> pipeline
     ingesta -- "GET paginado [HTTPS/JSON]" --> datosgov
-    ingesta -- "Guarda filas [SQL]" --> db
+    ingesta -- "Carga el CSV en la tabla [SQL]" --> db
     pipeline -- "Lee datos [SQL]" --> db
     pipeline -- "Escribe modelo y métricas [archivos]" --> artefactos
     api -- "Carga al iniciar [joblib/JSON]" --> artefactos
@@ -207,7 +207,7 @@ Por diseño, la API **no** depende de las capas de datos ni de procesamiento: so
 ### 4.5 Drivers y atributos de calidad
 Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectura/drivers-calidad.md`](docs/arquitectura/drivers-calidad.md).
 
-**Restricciones principales:** solo open source, ejecución local, datos tabulares de una API pública, modelo básico de ML, 6 días de plazo y solo variables previas a la prueba.
+**Restricciones principales:** solo open source, sin AWS ni servicios de pago, datos tabulares de una API pública, modelo básico de ML, 6 días de plazo y solo variables previas a la prueba.
 
 | Atributo | Escenario medible | Táctica principal |
 |---|---|---|
@@ -227,7 +227,7 @@ Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectur
 |---|---|---|---|
 | [001](docs/adr/0001-lenguaje-framework-estilo.md) | Python + FastAPI + arquitectura en capas | Camilo | Aceptada |
 | [002](docs/adr/0002-seleccion-modelo.md) | Regresión logística elegida por F1 en validación | Camilo | Aceptada |
-| [003](docs/adr/0003-almacenamiento-despliegue.md) | SQLite + joblib + uvicorn local | Camilo | Aceptada |
+| [003](docs/adr/0003-almacenamiento-despliegue.md) | SQLite + joblib + API en Render | Camilo | Aceptada |
 | [004](docs/adr/0004-separacion-datos.md) | Separación 70/15/15 estratificada, sin duplicados | Camilo | Aceptada |
 
 ## 6. Modelo
@@ -285,7 +285,8 @@ Cada criterio viene de un escenario de [`drivers-calidad.md`](docs/arquitectura/
 | El modelo supera al baseline | F1 mayor que el del baseline | ✅ 0,5126 frente a 0 | `reports/metrics.json` |
 | QA1 Rendimiento | p95 < 300 ms con 10 clientes y 500 solicitudes | ✅ 43,95 ms, 0 errores | `reports/latencia.json` |
 | QA2 Confiabilidad | Entrada inválida → 422 con el campo que falla | ✅ | `tests/test_api.py` |
-| QA3 Integridad | Mismas filas al repetir la carga; 0 duplicados tras `clean()` | ✅ 152.584 filas en ambas ejecuciones | `tests/test_data.py`, notebook de EDA |
+| QA3 Integridad | Mismas filas al repetir la carga; 0 duplicados tras `clean()` | ✅ | `tests/test_data.py`, notebook de EDA |
+| QA4 Disponibilidad | 3 reintentos por página; un fallo no daña el CSV existente | ✅ | `tests/test_data.py` |
 | QA5 Reproducibilidad | Métricas de test idénticas | ✅ `metrics.json` idéntico en dos ejecuciones | Comparación de archivos |
 | QA6 Validez | `ValueError` si entra una variable con fuga | ✅ | `tests/test_data.py` |
 | QA7 Equidad | Reportar brechas de recall > 0,10 | ⚠️ Reportadas: las 4 variables superan el criterio | `reports/equidad.md` |
@@ -350,7 +351,11 @@ Abre http://127.0.0.1:8000/docs para probarla desde Swagger UI.
 | POST | `/predict` | Riesgo y probabilidad de un perfil de contexto |
 | GET | `/metrics` | Métricas de test del modelo |
 
-**4. Verificar**
+**4. Publicar en la nube**
+
+`render.yaml` publica la API de la rama `develop` en el plan gratuito de Render, con el modelo ya entrenado (`models/model.joblib`) y las versiones de `requirements-deploy.txt`. En Render: **New → Blueprint** y selecciona este repositorio. Si reentrenas con otra versión de scikit-learn, actualiza ese archivo. La primera petición tras 15 minutos sin tráfico puede tardar cerca de un minuto.
+
+**5. Verificar**
 ```bash
 pytest
 python scripts/medir_latencia.py      # Con la API en ejecución

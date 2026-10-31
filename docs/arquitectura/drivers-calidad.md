@@ -7,7 +7,7 @@ Los **drivers** son los requisitos y restricciones que condicionan la arquitectu
 | Id | Restricción | Origen | Impacto en la arquitectura |
 |---|---|---|---|
 | RS1 | Solo herramientas **open source** | Lineamientos del curso | Python, scikit-learn, FastAPI, SQLite ([ADR-001](../adr/0001-lenguaje-framework-estilo.md), [ADR-003](../adr/0003-almacenamiento-despliegue.md)) |
-| RS2 | Ejecución **local**, sin servicios en la nube | Lineamientos del curso | Despliegue con uvicorn y base de datos embebida |
+| RS2 | **Sin AWS ni servicios de pago**; el entrenamiento y los datos corren en local | Lineamientos del curso | Base de datos embebida; API publicada en el plan gratuito de Render ([ADR-003](../adr/0003-almacenamiento-despliegue.md)) |
 | RS3 | Datos **tabulares** de una API pública con límites de velocidad | Fuente datos.gov.co | Ingesta paginada con reintentos y copia local |
 | RS4 | Modelo **básico** de ML (regresión logística, árbol, KNN…) | Rúbrica | Modelos de scikit-learn, sin redes neuronales |
 | RS5 | **6 días** y 3 integrantes en paralelo | Calendario | Capas con contratos explícitos, una capa por integrante |
