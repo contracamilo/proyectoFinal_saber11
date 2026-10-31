@@ -59,24 +59,24 @@ def _calcular_metricas(modelo: Pipeline, datos: pd.DataFrame) -> Metricas:
     }
 
 
-def _entrenar_modelos(
+def _entrenar_candidatos(
     entrenamiento: pd.DataFrame,
     validacion: pd.DataFrame,
     random_state: int,
-) -> tuple[dict[str, Metricas], str, Pipeline]:
-    """Entrena los candidatos, ajusta árboles con validación y selecciona el final."""
+) -> tuple[dict[str, Pipeline], dict[str, Metricas]]:
+    """Entrena los candidatos y escoge el árbol usando solo validación."""
     x_train = entrenamiento[FEATURES]
     y_train = entrenamiento[TARGET]
 
     baseline = _crear_pipeline(DummyClassifier(strategy="most_frequent"))
     baseline.fit(x_train, y_train)
-    metricas = {"baseline": _calcular_metricas(baseline, validacion)}
+    modelos = {"baseline": baseline}
 
     logreg = _crear_pipeline(
         LogisticRegression(max_iter=1000, class_weight="balanced")
     )
     logreg.fit(x_train, y_train)
-    metricas["logreg"] = _calcular_metricas(logreg, validacion)
+    modelos["logreg"] = logreg
 
     mejor_arbol: Pipeline | None = None
     mejores_metricas_arbol: Metricas | None = None
@@ -102,11 +102,35 @@ def _entrenar_modelos(
     if mejor_arbol is None or mejores_metricas_arbol is None:
         raise RuntimeError("No fue posible entrenar los candidatos de árbol.")
 
-    metricas["tree"] = mejores_metricas_arbol
+    modelos["tree"] = mejor_arbol
+    metricas = {
+        nombre: _calcular_metricas(modelo, validacion)
+        for nombre, modelo in modelos.items()
+    }
+    return modelos, metricas
+
+
+def _seleccionar_modelo(metricas: dict[str, Metricas]) -> str:
+    """Prefiere regresión logística cuando queda a 0,01 del mejor F1."""
     mejor_f1 = max(metricas["logreg"]["f1"], metricas["tree"]["f1"])
     if metricas["logreg"]["f1"] >= mejor_f1 - 0.01:
-        return metricas, "logreg", logreg
-    return metricas, "tree", mejor_arbol
+        return "logreg"
+    return "tree"
+
+
+def _entrenar_modelos(
+    entrenamiento: pd.DataFrame,
+    validacion: pd.DataFrame,
+    random_state: int,
+) -> tuple[dict[str, Metricas], str, Pipeline]:
+    """Entrena los candidatos y selecciona el mejor según F1 en validación."""
+    modelos, metricas = _entrenar_candidatos(
+        entrenamiento,
+        validacion,
+        random_state,
+    )
+    nombre_modelo = _seleccionar_modelo(metricas)
+    return metricas, nombre_modelo, modelos[nombre_modelo]
 
 
 def _guardar_resultados(
