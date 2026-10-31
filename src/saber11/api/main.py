@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
 
 from saber11.api.model_service import ServicioPrediccion
 from saber11.api.schemas import Estado, PerfilEntrada, Prediccion
@@ -28,6 +29,12 @@ app = FastAPI(
     version="1.0.0",
     lifespan=ciclo_de_vida,
 )
+
+
+@app.get("/", include_in_schema=False)
+def inicio() -> RedirectResponse:
+    """Lleva la URL pública a la documentación interactiva."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health", response_model=Estado)
