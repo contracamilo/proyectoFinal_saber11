@@ -14,3 +14,12 @@ Modelo seleccionado: **logreg**
 |---|---|---|
 | Real 0 | VN = 5512 | FP = 3116 |
 | Real 1 | FN = 768 | VP = 2042 |
+
+## Calibración
+
+| Medida | Puntaje del modelo | Probabilidad calibrada |
+|---|---|---|
+| Media (tasa real: 0.2457) | 0.4499 | 0.2458 |
+| Brier (tasa base: 0.1853) | 0.2035 | 0.1574 |
+
+El modelo emite una alerta desde una probabilidad calibrada de 0.2471.
