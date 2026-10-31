@@ -56,10 +56,64 @@ Este proyecto propone un modelo de clasificación que, a partir de información 
 - Es un *product concept*: no incluye autenticación, interfaz gráfica propia ni despliegue productivo. Se documentan como evolución futura.
 
 ## 3. Datos
+
 *Responsable: Daniel*
 
-- **Fuente:** [Resultados únicos Saber 11 — datos.gov.co](https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe) (ICFES), API Socrata `kgxf-xxbe`.
-- TODO: licencia, número de registros, diccionario de variables, tabla de 5 filas de ejemplo, resumen del EDA.
+- **Fuente:** [Resultados únicos Saber 11 — datos.gov.co](https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe), API Socrata `kgxf-xxbe`.
+- **Entidad:** Instituto Colombiano para la Evaluación de la Educación (ICFES).
+- **Licencia:** Creative Commons Attribution-ShareAlike 4.0 International.
+- **Alcance:** periodo `20224`, colegios ubicados en Bogotá.
+- **Registros:** 152.584 filas descargadas, que corresponden a **76.253 estudiantes únicos**. Las otras 76.331 filas son copias idénticas y se eliminan en `clean()`.
+- **Tipo de datos:** tabulares. La API entrega todas las columnas como texto.
+
+### Objetivo del modelo
+Clasificación binaria. `riesgo_bajo_desempeno` vale 1 si `punt_global` es menor que **234**, el percentil 25 del periodo. El 24,57 % de los estudiantes queda en la clase 1.
+
+### Diccionario de variables
+| Variable | Descripción | Tipo | Uso |
+|---|---|---|---|
+| `cole_area_ubicacion` | Área del colegio: urbana o rural | Categórica | Entrada, sensible |
+| `cole_bilingue` | Colegio bilingüe | Categórica | Entrada |
+| `cole_calendario` | Calendario A, B u otro | Categórica | Entrada |
+| `cole_caracter` | Académico, técnico o ambos | Categórica | Entrada |
+| `cole_genero` | Colegio mixto, femenino o masculino | Categórica | Entrada |
+| `cole_jornada` | Jornada del colegio | Categórica | Entrada |
+| `cole_naturaleza` | Oficial o no oficial | Categórica | Entrada, sensible |
+| `estu_genero` | Género del estudiante | Categórica | Entrada, sensible |
+| `fami_cuartoshogar` | Cuartos del hogar | Categórica | Entrada |
+| `fami_educacionmadre` | Educación de la madre | Categórica | Entrada |
+| `fami_educacionpadre` | Educación del padre | Categórica | Entrada |
+| `fami_estratovivienda` | Estrato de la vivienda | Categórica | Entrada, sensible |
+| `fami_personashogar` | Personas en el hogar | Categórica | Entrada |
+| `fami_tieneautomovil` | El hogar tiene automóvil | Categórica | Entrada |
+| `fami_tienecomputador` | El hogar tiene computador | Categórica | Entrada |
+| `fami_tieneinternet` | El hogar tiene internet | Categórica | Entrada |
+| `fami_tienelavadora` | El hogar tiene lavadora | Categórica | Entrada |
+| `edad` | Edad en el año de la prueba, calculada desde `estu_fechanacimiento` | Numérica | Entrada |
+| `estu_consecutivo` | Identificador del registro | Texto | Solo para quitar duplicados |
+| `punt_global` | Puntaje global de la prueba | Numérica | Solo para construir el target |
+
+Las columnas `punt_*`, `desemp_*` y `percentil_*` nunca son entrada del modelo, porque son el resultado de la prueba.
+
+### Ejemplo de los datos
+| cole_naturaleza   | cole_area_ubicacion   | cole_jornada   | estu_genero   | fami_estratovivienda   | fami_tieneinternet   |   edad |   punt_global |
+|:------------------|:----------------------|:---------------|:--------------|:-----------------------|:---------------------|-------:|--------------:|
+| OFICIAL           | URBANO                | UNICA          | F             | Estrato 2              | Si                   |     18 |           262 |
+| OFICIAL           | URBANO                | UNICA          | M             | Estrato 2              | No                   |     18 |           239 |
+| OFICIAL           | URBANO                | TARDE          | F             | Estrato 2              | No                   |     18 |           216 |
+| OFICIAL           | URBANO                | UNICA          | F             | Estrato 3              | Si                   |     17 |           186 |
+| OFICIAL           | URBANO                | MAÑANA         | F             | Estrato 1              | No                   |     17 |           284 |
+
+### Resumen del EDA
+El análisis completo está en [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb).
+
+- **Duplicados:** la mitad de las filas son copias. Sin quitarlas, un mismo estudiante podría quedar en train y en test.
+- **Nulos:** los puntajes casi no tienen vacíos. Los mayores están en `cole_bilingue` (18,5 %) y `cole_caracter` (4,6 %), y se imputan dentro del `Pipeline`.
+- **Relación con el riesgo:** va de 12,7 % en estrato 4 a 36,9 % en estrato 1; de 4,7 % con madre con postgrado a 59,6 % con madre sin educación; y es de 31,2 % en colegios oficiales frente a 15,5 % en no oficiales.
+- **Grupos pequeños:** zona rural (663), estrato 6 (417) y "Sin Estrato" (556) dan estimaciones menos estables.
+
+![Distribución de punt_global](reports/figures/eda_punt_global.png)
+![Riesgo por estrato](reports/figures/eda_riesgo_fami_estratovivienda.png)
 
 ## 4. Arquitectura
 *Responsable: Camilo*
