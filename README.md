@@ -318,12 +318,42 @@ El análisis completo está en [`docs/analisis_etico.md`](docs/analisis_etico.md
 | R5 | Volumen de datos y límites de la API | Medio: descargas lentas o fallidas | Paginación de 50.000 filas, 3 reintentos con timeout de 120 s y copia local en CSV y SQLite |
 
 ## 10. Cómo ejecutar
+
+Requiere Python 3.11 o superior. Ejecuta los comandos desde la raíz del repositorio.
+
+**1. Instalar**
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate      # Windows (PowerShell): .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 pip install -e .
-# TODO: comandos de ingesta, entrenamiento, evaluación y API
+```
+
+**2. Ejecutar el pipeline**
+```bash
+python -m saber11.data.ingest         # Descarga los datos (--force para repetir)
+python -m saber11.data.repository     # Carga los datos en SQLite
+python -m saber11.models.train        # Entrena y selecciona el modelo
+python -m saber11.models.evaluate     # Genera métricas y matriz de confusión
+python -m saber11.models.fairness     # Genera el reporte de equidad
+```
+
+**3. Levantar la API**
+```bash
+uvicorn saber11.api.main:app
+```
+Abre http://127.0.0.1:8000/docs para probarla desde Swagger UI.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/health` | Estado del servicio y modelo cargado |
+| POST | `/predict` | Riesgo y probabilidad de un perfil de contexto |
+| GET | `/metrics` | Métricas de test del modelo |
+
+**4. Verificar**
+```bash
 pytest
+python scripts/medir_latencia.py      # Con la API en ejecución
 ```
 
 ## 11. Estructura del repositorio
@@ -332,11 +362,13 @@ pytest
 ├── data/              # raw/ y processed/ (no versionados)
 ├── docs/
 │   ├── adr/           # Architecture Decision Records
-│   ├── arquitectura/  # Diagramas C4
+│   ├── arquitectura/  # Diagramas C4, contratos y drivers de calidad
+│   ├── analisis_etico.md
 │   └── evidencias/    # Capturas y evidencias.pdf
 ├── models/            # Artefactos entrenados (.joblib)
 ├── notebooks/         # EDA y experimentos
-├── reports/           # Métricas y figuras
+├── reports/           # Métricas, equidad, latencia y figuras
+├── scripts/           # Medición de latencia
 ├── src/saber11/
 │   ├── data/          # Capa de datos: ingesta y almacenamiento
 │   ├── features/      # Capa de procesamiento: limpieza y features
