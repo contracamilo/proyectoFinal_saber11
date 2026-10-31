@@ -401,13 +401,37 @@ python scripts/medir_latencia.py      # Con la API en ejecución
 |---|---|
 | ADR | *Architecture Decision Record*: registro de una decisión de arquitectura, su contexto y consecuencias. |
 | C4 | Modelo para describir arquitectura en cuatro niveles: contexto, contenedores, componentes y código. |
-| TODO | — |
+| Accuracy | Proporción de predicciones correctas sobre el total. |
+| API Socrata | Interfaz de datos.gov.co para consultar datasets por HTTP. |
+| Baseline | Modelo de referencia muy simple que sirve de piso de comparación. |
+| Brecha de recall | Diferencia de recall entre el grupo con mayor y el de menor valor. |
+| EDA | Análisis exploratorio de datos: revisar los datos antes de modelar. |
+| Estratificación | Separar los datos conservando la misma proporción de clases en cada conjunto. |
+| F1 | Media armónica entre precision y recall. |
+| Fuga de información | Usar en el entrenamiento información que no estaría disponible al predecir. |
+| Idempotencia | Propiedad de una operación que, repetida, deja el mismo resultado. |
+| Matriz de confusión | Tabla que cruza valores reales y predichos: VP, FP, VN y FN. |
+| One-hot encoding | Convertir una categoría en columnas de 0 y 1. |
+| p95 | Valor por debajo del cual queda el 95 % de las mediciones. |
+| Percentil | Valor por debajo del cual queda un porcentaje de los datos. |
+| Pipeline | Secuencia de preprocesamiento y modelo que se ajusta y se guarda como una unidad. |
+| Precision | De los casos marcados como positivos, proporción que realmente lo es. |
+| *Proxy* | Variable que representa indirectamente a otra, como el estrato al nivel socioeconómico. |
+| Recall | De los casos positivos reales, proporción que el modelo detecta. |
+| Regresión logística | Modelo lineal que estima la probabilidad de una clase. |
+| ROC-AUC | Capacidad de ordenar positivos por encima de negativos; 0,5 equivale al azar. |
+| Sobreajuste | Cuando un modelo memoriza train y generaliza mal. |
 
 ## 14. Referencias
 - ICFES. *Resultados únicos Saber 11*. datos.gov.co. https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe
 - Brown, S. *The C4 model for visualising software architecture*. https://c4model.com
 - Nygard, M. *Documenting Architecture Decisions*. https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
-- TODO: scikit-learn, FastAPI, referencias de ética/equidad.
+- Pedregosa, F. et al. (2011). *Scikit-learn: Machine Learning in Python*. Journal of Machine Learning Research, 12, 2825-2830. https://scikit-learn.org
+- FastAPI. *Documentation*. https://fastapi.tiangolo.com
+- pandas. *Documentation*. https://pandas.pydata.org
+- SQLite. *Documentation*. https://www.sqlite.org
+- Barocas, S., Hardt, M. y Narayanan, A. *Fairness and Machine Learning*. https://fairmlbook.org
+- Hardt, M., Price, E. y Srebro, N. (2016). *Equality of Opportunity in Supervised Learning*. NeurIPS.
 
 ## 15. Evidencias
 Capturas de cada etapa del workflow de ML consolidadas en [`docs/evidencias/evidencias.pdf`](docs/evidencias/).
