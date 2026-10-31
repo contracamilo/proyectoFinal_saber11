@@ -1,5 +1,10 @@
 """Limpieza, construcción del target, separación y preprocesamiento."""
 import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 TARGET = "riesgo_bajo_desempeno"
 FEATURES = [
@@ -54,3 +59,55 @@ def build_target(df: pd.DataFrame, percentile: int) -> tuple[pd.DataFrame, float
     umbral = float(df["punt_global"].quantile(percentile / 100))
     df[TARGET] = (df["punt_global"] < umbral).astype(int)
     return df, umbral
+
+
+def split(df: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Separa en train, validación y test de forma estratificada."""
+    parametros = cfg["split"]
+    semilla = parametros["random_state"]
+    train_val, test = train_test_split(
+        df, test_size=parametros["test_size"], stratify=df[TARGET], random_state=semilla
+    )
+    proporcion_val = parametros["val_size"] / (1 - parametros["test_size"])
+    train, val = train_test_split(
+        train_val, test_size=proporcion_val, stratify=train_val[TARGET], random_state=semilla
+    )
+    return train, val, test
+
+
+def _verificar_fuga(features: list[str]) -> None:
+    """Lanza ValueError si alguna variable contiene el resultado de la prueba."""
+    prohibidas = [c for c in features if c.startswith(LEAKAGE_PREFIXES)]
+    if prohibidas:
+        raise ValueError(f"Fuga de información en las variables: {prohibidas}")
+
+
+def build_preprocessor(features: list[str] = FEATURES) -> ColumnTransformer:
+    """Construye el preprocesador sin ajustar; se ajusta dentro del Pipeline solo con train."""
+    _verificar_fuga(features)
+    numericas = [c for c in features if c in NUMERICAS]
+    categoricas = [c for c in features if c not in NUMERICAS]
+    return ColumnTransformer(
+        [
+            (
+                "categoricas",
+                Pipeline(
+                    [
+                        ("imputar", SimpleImputer(strategy="most_frequent")),
+                        ("codificar", OneHotEncoder(handle_unknown="ignore")),
+                    ]
+                ),
+                categoricas,
+            ),
+            (
+                "numericas",
+                Pipeline(
+                    [
+                        ("imputar", SimpleImputer(strategy="median")),
+                        ("escalar", StandardScaler()),
+                    ]
+                ),
+                numericas,
+            ),
+        ]
+    )
