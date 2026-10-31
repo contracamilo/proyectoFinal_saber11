@@ -283,7 +283,7 @@ Cada criterio viene de un escenario de [`drivers-calidad.md`](docs/arquitectura/
 | Criterio | Medida | Resultado | Evidencia |
 |---|---|---|---|
 | El modelo supera al baseline | F1 mayor que el del baseline | ✅ 0,5126 frente a 0 | `reports/metrics.json` |
-| QA1 Rendimiento | p95 < 300 ms con 10 clientes y 500 solicitudes | ✅ 43,95 ms, 0 errores | `reports/latencia.json` |
+| QA1 Rendimiento | p95 < 300 ms en local, con 10 clientes y 500 solicitudes | ✅ 43,95 ms, 0 errores | `reports/latencia.json` |
 | QA2 Confiabilidad | Entrada inválida → 422 con el campo que falla | ✅ | `tests/test_api.py` |
 | QA3 Integridad | Mismas filas al repetir la carga; 0 duplicados tras `clean()` | ✅ | `tests/test_data.py`, notebook de EDA |
 | QA4 Disponibilidad | 3 reintentos por página; un fallo no daña el CSV existente | ✅ | `tests/test_data.py` |
@@ -292,6 +292,8 @@ Cada criterio viene de un escenario de [`drivers-calidad.md`](docs/arquitectura/
 | QA7 Equidad | Reportar brechas de recall > 0,10 | ⚠️ Reportadas: las 4 variables superan el criterio | `reports/equidad.md` |
 | QA8 Mantenibilidad | La API no depende de datos ni de procesamiento | ✅ | `tests/test_api.py` |
 | QA9 Privacidad | Sin identificadores ni puntajes en la API | ✅ | `tests/test_api.py` |
+
+**Latencia en la nube.** QA1 se define en local. En Render, medido desde el equipo de desarrollo, el p95 es de 228,83 ms con 1 cliente y de 1.273,44 ms con 10 clientes, sin errores ([1 cliente](reports/latencia_render_1cliente.json), [10 clientes](reports/latencia_render.json)). Con 1 cliente casi todo es red: `GET /health` ya tarda unos 190 ms. Con 10 clientes las peticiones hacen cola, y la causa más probable es el límite de 0,1 de CPU del plan gratuito. Alcanza para esta demostración, no para uso concurrente real.
 
 ## 8. Análisis ético
 
@@ -353,12 +355,13 @@ Abre http://127.0.0.1:8000/docs para probarla desde Swagger UI.
 
 **4. Publicar en la nube**
 
-`render.yaml` publica la API de la rama `develop` en el plan gratuito de Render, con el modelo ya entrenado (`models/model.joblib`) y las versiones de `requirements-deploy.txt`. En Render: **New → Blueprint** y selecciona este repositorio. Si reentrenas con otra versión de scikit-learn, actualiza ese archivo. La primera petición tras 15 minutos sin tráfico puede tardar cerca de un minuto.
+La API está publicada en <https://saber11-api.onrender.com>, con Swagger en `/docs`. `render.yaml` publica la rama `develop` en el plan gratuito de Render, con el modelo ya entrenado (`models/model.joblib`) y las versiones de `requirements-deploy.txt`. En Render: **New → Blueprint** y selecciona este repositorio. Si reentrenas con otra versión de scikit-learn, actualiza ese archivo. La primera petición tras 15 minutos sin tráfico puede tardar cerca de un minuto.
 
 **5. Verificar**
 ```bash
 pytest
 python scripts/medir_latencia.py      # Con la API en ejecución
+python scripts/medir_latencia.py --url https://saber11-api.onrender.com --salida reports/latencia_render.json
 ```
 
 ## 11. Estructura del repositorio
@@ -390,7 +393,7 @@ python scripts/medir_latencia.py      # Con la API en ejecución
 - **El contexto explica solo una parte del desempeño.** Con variables previas a la prueba, el modelo no distingue por completo qué estudiantes estarán en riesgo.
 - **Hay brechas de equidad.** Las cuatro variables auditadas superan el criterio de 0,10, y la mayor es la de estrato (0,41).
 - **La calidad de los datos cambió el resultado.** La mitad de la fuente eran filas duplicadas; quitarlas dio una medición honesta.
-- **El sistema cumple sus criterios técnicos.** El p95 es de 43,95 ms, las entradas inválidas devuelven 422 y los resultados son reproducibles.
+- **El sistema cumple sus criterios técnicos en local.** El p95 es de 43,95 ms, las entradas inválidas devuelven 422 y los resultados son reproducibles. En Render responde sin errores, pero con 10 clientes simultáneos el p95 sube a 1,27 s.
 
 ### Recomendaciones
 1. Quitar las variables sensibles si el sistema llega a usarse: el F1 no cae y se reducen las brechas de género y área.
@@ -448,6 +451,6 @@ Evidencias de cada etapa del workflow de ML, con las salidas reales de los coman
 | Procesamiento | `src/saber11/features/preprocessing.py` |
 | Modelo | `src/saber11/models/`, [`reports/metricas.md`](reports/metricas.md) |
 | Equidad | [`reports/equidad.md`](reports/equidad.md), [`docs/analisis_etico.md`](docs/analisis_etico.md) |
-| Servicio | `src/saber11/api/`, [`reports/latencia.json`](reports/latencia.json) |
+| Servicio | `src/saber11/api/`, [`reports/latencia.json`](reports/latencia.json), [`reports/latencia_render.json`](reports/latencia_render.json) |
 | Pruebas | `tests/` |
 

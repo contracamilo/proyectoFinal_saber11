@@ -92,7 +92,7 @@ flowchart LR
   - `model.joblib` solo funciona con la misma versión de scikit-learn con la que se entrenó. Por eso `requirements-deploy.txt` fija las versiones y `model_meta.json` registra `sklearn_version`. En otro entorno, se regenera con `train.py`.
   - Cargar un `.joblib` ejecuta código: solo se cargan artefactos generados por el propio pipeline.
   - Render es un servicio propietario. El stack sigue siendo open source y el proyecto puede ejecutarse completo en local, así que no hay dependencia de ese proveedor.
-  - En el plan gratuito, la primera petición tras 15 minutos sin tráfico tarda cerca de un minuto y la CPU es limitada: la latencia en la nube debe medirse aparte.
+  - En el plan gratuito, la primera petición tras 15 minutos sin tráfico tarda cerca de un minuto (52 s medidos) y la CPU es limitada: el p95 es de 228,83 ms con 1 cliente y de 1.273,44 ms con 10 clientes, frente a 43,95 ms en local. El escenario QA1 se mide en local.
   - La API es pública y no tiene autenticación. Es aceptable porque no guarda consultas ni acepta identificadores.
 
 ## Trade-offs
