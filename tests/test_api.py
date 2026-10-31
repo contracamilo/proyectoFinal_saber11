@@ -35,6 +35,12 @@ def cliente():
     return TestClient(main.app)
 
 
+def test_inicio_redirige_a_la_documentacion(cliente):
+    respuesta = cliente.get("/", follow_redirects=False)
+    assert respuesta.status_code == 307
+    assert respuesta.headers["location"] == "/docs"
+
+
 def test_health_informa_el_modelo(cliente):
     respuesta = cliente.get("/health")
     assert respuesta.status_code == 200
