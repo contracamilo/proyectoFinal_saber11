@@ -55,11 +55,60 @@ Este proyecto propone un modelo de clasificación que, a partir de información 
 - Solo herramientas open source; ejecución local, sin servicios en la nube.
 - Es un *product concept*: no incluye autenticación, interfaz gráfica propia ni despliegue productivo. Se documentan como evolución futura.
 
-## 3. Datos
-*Responsable: Daniel*
 
-- **Fuente:** [Resultados únicos Saber 11 — datos.gov.co](https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe) (ICFES), API Socrata `kgxf-xxbe`.
-- TODO: licencia, número de registros, diccionario de variables, tabla de 5 filas de ejemplo, resumen del EDA.
+## 3. Datos
+
+- **Fuente:** "Resultados únicos Saber 11", datos.gov.co ([página del dataset](https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe), [API](https://www.datos.gov.co/resource/kgxf-xxbe.json)).
+- **Entidad:** ICFES.
+- **Licencia:** [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/legalcode), según la página del dataset en datos.gov.co.
+- **Alcance:** periodo 20224, colegios de Bogotá.
+- **Registros:** 152.584 filas descargadas y 76.253 estudiantes únicos, tras quitar duplicados.
+
+### Diccionario de variables
+| Variable | Descripción | Tipo | Uso |
+|---|---|---|---|
+| cole_area_ubicacion | Zona del colegio (urbana o rural) | Categórica | Entrada |
+| cole_bilingue | Si el colegio es bilingüe | Categórica | Entrada |
+| cole_calendario | Calendario académico del colegio (A, B u otro) | Categórica | Entrada |
+| cole_caracter | Carácter del colegio (por ejemplo académico o técnico) | Categórica | Entrada |
+| cole_genero | Tipo de colegio según el género de sus estudiantes (mixto, femenino o masculino) | Categórica | Entrada |
+| cole_jornada | Jornada del colegio (mañana, tarde, única, etc.) | Categórica | Entrada |
+| cole_naturaleza | Naturaleza del colegio (oficial o no oficial) | Categórica | Entrada |
+| estu_genero | Género del estudiante | Categórica | Entrada, sensible |
+| fami_cuartoshogar | Número de cuartos del hogar | Categórica | Entrada |
+| fami_educacionmadre | Nivel educativo de la madre | Categórica | Entrada |
+| fami_educacionpadre | Nivel educativo del padre | Categórica | Entrada |
+| fami_estratovivienda | Estrato de la vivienda | Categórica | Entrada, sensible |
+| fami_personashogar | Número de personas que viven en el hogar | Categórica | Entrada |
+| fami_tieneautomovil | Si el hogar tiene automóvil (Si/No) | Categórica | Entrada |
+| fami_tienecomputador | Si el hogar tiene computador (Si/No) | Categórica | Entrada |
+| fami_tieneinternet | Si el hogar tiene internet (Si/No) | Categórica | Entrada |
+| fami_tienelavadora | Si el hogar tiene lavadora (Si/No) | Categórica | Entrada |
+| edad | Edad en el año de la prueba, calculada desde la fecha de nacimiento | Numérica | Entrada |
+| punt_global | Puntaje global de la prueba | Numérica | Solo para construir el target |
+
+### Ejemplo de los datos
+
+| cole_naturaleza   | cole_area_ubicacion   | cole_jornada   | estu_genero   | fami_estratovivienda   | fami_tieneinternet   |   edad |   punt_global |
+|:------------------|:----------------------|:---------------|:--------------|:-----------------------|:---------------------|-------:|--------------:|
+| OFICIAL           | URBANO                | UNICA          | F             | Estrato 2              | Si                   |     18 |           262 |
+| OFICIAL           | URBANO                | UNICA          | M             | Estrato 2              | No                   |     18 |           239 |
+| OFICIAL           | URBANO                | TARDE          | F             | Estrato 2              | No                   |     18 |           216 |
+| OFICIAL           | URBANO                | UNICA          | F             | Estrato 3              | Si                   |     17 |           186 |
+| OFICIAL           | URBANO                | MAÑANA         | F             | Estrato 1              | No                   |     17 |           284 |
+
+
+
+### Variable objetivo
+`riesgo_bajo_desempeno` = 1 si `punt_global` es menor que el percentil 25 (umbral: 234). Con esto, el 24,57 % de los estudiantes queda en riesgo y el 75,43 % no. La partición en train (53.377), val (11.438) y test (11.438) mantiene esa misma proporción.
+
+### Resumen del EDA
+El dataset traía cada estudiante repetido: 152.584 filas para 76.253 estudiantes, así que dejé una fila por `estu_consecutivo`. Hay nulos en 12 columnas, casi todos entre 2,7 % y 4,6 %, salvo `cole_bilingue` (18,5 %). Las fechas de nacimiento no tuvieron ninguna inválida.
+
+El puntaje global tiene forma de campana. El riesgo sube cuando la madre tiene menos estudios, en los estratos bajos, cuando no hay internet y en los colegios oficiales; el género y la zona separan bastante menos. Como cuidados, hay categorías muy pequeñas ("Ninguno" con 539, calendario B con 64, estrato 6 con 417), categorías como "No sabe" y "No Aplica", y variables socioeconómicas que van juntas, así que solo se ven asociaciones, no causas.
+
+![Distribución del puntaje](reports/figures/eda_punt_global.png)
+![Riesgo por educación de la madre](reports/figures/eda_riesgo_fami_educacionmadre.png)
 
 ## 4. Arquitectura
 *Responsable: Camilo*
