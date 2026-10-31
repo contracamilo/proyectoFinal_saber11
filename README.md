@@ -231,23 +231,79 @@ Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectur
 | [004](docs/adr/0004-separacion-datos.md) | Separación 70/15/15 estratificada, sin duplicados | Daniel | Aceptada |
 
 ## 6. Modelo
+
 *Responsable: Richard*
 
-TODO: modelo seleccionado, justificación, hiperparámetros, entrenamiento.
+Se eligió **regresión logística** porque es un modelo básico, interpretable y rápido, y obtuvo el mejor F1 y el mejor ROC-AUC en validación. La comparación completa está en el [ADR-002](docs/adr/0002-seleccion-modelo.md).
+
+- **Propósito:** estimar el riesgo de bajo desempeño de un perfil de contexto para apoyar la planeación agregada de refuerzos.
+- **Hiperparámetros:** `LogisticRegression(max_iter=1000, class_weight="balanced")`. El peso balanceado compensa que solo el 24,57 % de los casos sea clase 1.
+- **Preprocesamiento:** categóricas con imputación por moda y `OneHotEncoder(handle_unknown="ignore")`; `edad` con imputación por mediana y `StandardScaler`. Va dentro del `Pipeline` y se ajusta solo con train.
+- **Entrenamiento:** 53.377 estudiantes y 75 columnas tras la codificación.
+- **Qué mira el modelo:** los coeficientes más altos están en jornada nocturna y sabatina, y en padres sin educación. Los más bajos, en jornada completa y padres con postgrado. Son asociaciones, no causas.
 
 ## 7. Calidad y evaluación
+
 *Responsables: Richard (métricas), Daniel (separación de datos), Camilo (criterios de aceptación)*
 
-- **Estrategia de separación:** TODO (ver ADR-004).
-- **Modelo de referencia (baseline):** TODO.
-- **Tabla de métricas:** TODO (Accuracy, Precision, Recall, F1, ROC-AUC vs baseline).
-- **Matriz de confusión** e interpretación de VP, FP, VN, FN: TODO.
-- **Criterios de aceptación del software:** TODO.
+- **Estrategia de separación:** 70/15/15 estratificada por el target, con `random_state=42`, sin estudiantes repetidos: 53.377 en train, 11.438 en validación y 11.438 en test, con 24,57 % de clase 1 en cada uno ([ADR-004](docs/adr/0004-separacion-datos.md)).
+- **Modelo de referencia (baseline):** `DummyClassifier(strategy="most_frequent")`, que siempre predice "sin riesgo".
+
+### Métricas en test
+| Modelo | Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---|---|---|---|---|---|
+| Baseline | 0,7543 | 0,0000 | 0,0000 | 0,0000 | 0,5000 |
+| **Regresión logística** | 0,6604 | 0,3959 | 0,7267 | **0,5126** | 0,7539 |
+| Árbol de decisión | 0,6299 | 0,3736 | 0,7480 | 0,4983 | 0,7420 |
+
+| Métrica | Valor | Qué significa aquí |
+|---|---|---|
+| Accuracy | 0,6604 | Acierta en 66 de cada 100 casos. Es menor que la del baseline porque el baseline nunca detecta riesgo: por eso esta métrica no sirve sola. |
+| Precision | 0,3959 | De cada 100 alertas, cerca de 40 son estudiantes realmente en riesgo. |
+| Recall | 0,7267 | Detecta cerca de 73 de cada 100 estudiantes en riesgo. |
+| F1 | 0,5126 | Equilibra precision y recall. Es la métrica de selección. |
+| ROC-AUC | 0,7539 | Distingue entre clases mejor que el azar (0,5), con capacidad moderada. |
+
+### Matriz de confusión
+| | Predicho: sin riesgo | Predicho: riesgo |
+|---|---|---|
+| **Real: sin riesgo** | VN = 5.512 | FP = 3.116 |
+| **Real: riesgo** | FN = 768 | VP = 2.042 |
+
+![Matriz de confusión](reports/figures/matriz_confusion.png)
+
+- **Verdaderos positivos (2.042):** estudiantes en riesgo que el modelo detecta.
+- **Verdaderos negativos (5.512):** estudiantes sin riesgo que el modelo descarta bien.
+- **Falsos positivos (3.116):** estudiantes sin riesgo marcados como en riesgo. Su costo es usar recursos donde no hacían falta y etiquetar sin razón.
+- **Falsos negativos (768):** estudiantes en riesgo que no se detectan. Es el error más grave para este propósito, porque se quedan sin apoyo.
+
+### Criterios de aceptación del software
+Cada criterio viene de un escenario de [`drivers-calidad.md`](docs/arquitectura/drivers-calidad.md).
+
+| Criterio | Medida | Resultado | Evidencia |
+|---|---|---|---|
+| El modelo supera al baseline | F1 mayor que el del baseline | ✅ 0,5126 frente a 0 | `reports/metrics.json` |
+| QA1 Rendimiento | p95 < 300 ms con 10 clientes y 500 solicitudes | ✅ 43,95 ms, 0 errores | `reports/latencia.json` |
+| QA2 Confiabilidad | Entrada inválida → 422 con el campo que falla | ✅ | `tests/test_api.py` |
+| QA3 Integridad | Mismas filas al repetir la carga; 0 duplicados tras `clean()` | ✅ 152.584 filas en ambas ejecuciones | `tests/test_data.py`, notebook de EDA |
+| QA5 Reproducibilidad | Métricas de test idénticas | ✅ `metrics.json` idéntico en dos ejecuciones | Comparación de archivos |
+| QA6 Validez | `ValueError` si entra una variable con fuga | ✅ | `tests/test_data.py` |
+| QA7 Equidad | Reportar brechas de recall > 0,10 | ⚠️ Reportadas: las 4 variables superan el criterio | `reports/equidad.md` |
+| QA8 Mantenibilidad | La API no depende de datos ni de procesamiento | ✅ | `tests/test_api.py` |
+| QA9 Privacidad | Sin identificadores ni puntajes en la API | ✅ | `tests/test_api.py` |
 
 ## 8. Análisis ético
+
 *Responsable: Richard*
 
-TODO: resumen; análisis completo en `docs/analisis_etico.md`.
+El análisis completo está en [`docs/analisis_etico.md`](docs/analisis_etico.md).
+
+- **Sesgos:** los datos cubren un solo periodo de Bogotá, y variables como el estrato o la educación de los padres son aproximaciones del nivel socioeconómico.
+- **Equidad:** las cuatro variables auditadas superan la brecha de recall de 0,10: estrato (0,41), naturaleza del colegio (0,24), área (0,14) y género (0,14). En estrato 1, el 71 % de quienes no están en riesgo queda marcado como en riesgo.
+- **Variables sensibles:** quitarlas casi no cambia el F1 (0,5129 frente a 0,5126) y reduce las brechas de género y área, pero no las de estrato y naturaleza, porque otras variables actúan como *proxies*.
+- **Privacidad:** los datos son abiertos y anónimos, pero cruzarlos podría permitir reidentificar personas. La API no acepta identificadores.
+- **Impacto social:** usar el modelo sobre individuos podría estigmatizar a estudiantes y colegios.
+- **Uso responsable:** sirve para planear apoyos de forma agregada y con revisión humana. **No debe usarse para decisiones individuales.**
 
 ## 9. Riesgos técnicos
 *Responsables: todos*
