@@ -249,11 +249,11 @@ TODO: resumen; análisis completo en `docs/analisis_etico.md`.
 
 | # | Riesgo | Impacto | Mitigación |
 |---|---|---|---|
-| R1 | Fuga de información (usar `punt_*` como entrada) | TODO | TODO |
-| R2 | Desbalance de clases | TODO | TODO |
+| R1 | Fuga de información (usar `punt_*` como entrada) | Alto: si el modelo ve columnas que ya contienen el resultado, las métricas salen infladas y el modelo no sirve con estudiantes nuevos. | Se excluyeron `punt_*`, `desemp_*` y `percentil_*` de `FEATURES` (`punt_global` solo se usa para construir el target). Se quitan duplicados por `estu_consecutivo` antes de separar, y el preprocesamiento se ajusta solo con train dentro del `Pipeline`. Los tests `test_features_sin_fuga` y `test_preprocesador_rechaza_fuga` lo verifican. |
+| R2 | Desbalance de clases | Medio: solo 24,57 % de los estudiantes está en riesgo, así que un modelo que siempre diga "0" acertaría cerca de 75 % sin detectar a nadie en riesgo. | Partición 70/15/15 estratificada por el target (24,57 % de clase 1 en train, val y test) y evaluación con recall, precision y F1 de la clase 1, no solo accuracy. |
 | R3 | Sesgo socioeconómico / discriminación por variables *proxy* | TODO | TODO |
 | R4 | Sobreajuste del árbol de decisión | TODO | TODO |
-| R5 | Volumen de datos y límites de la API | TODO | TODO |
+| R5 | Volumen de datos y límites de la API | Medio: la API de datos.gov.co (Socrata) limita las consultas y, si se descarga cada vez, el proceso es lento y puede fallar. | Se descargan los datos una sola vez (152.584 filas) y se guardan en local para trabajar desde ahí. La descarga es idempotente: repetirla no duplica ni altera los datos. |
 
 ## 10. Cómo ejecutar
 ```bash
@@ -291,6 +291,13 @@ TODO.
 |---|---|
 | ADR | *Architecture Decision Record*: registro de una decisión de arquitectura, su contexto y consecuencias. |
 | C4 | Modelo para describir arquitectura en cuatro niveles: contexto, contenedores, componentes y código. |
+| EDA | *Exploratory Data Analysis*: análisis exploratorio para entender los datos (tamaño, nulos, duplicados, distribuciones) antes de modelar. |
+| API Socrata | Interfaz de datos.gov.co que permite consultar y descargar conjuntos de datos abiertos, como "Resultados únicos Saber 11". |
+| Idempotencia | Propiedad de una operación que da el mismo resultado si se ejecuta una o varias veces; por ejemplo, descargar los datos de nuevo no genera duplicados. |
+| Estratificación | Forma de separar los datos manteniendo la misma proporción de cada clase en train, val y test (aquí, 24,57 % de clase 1 en los tres). |
+| Fuga de información | *Data leakage*: que el modelo acceda, directa o indirectamente, a información que no tendría al predecir, como los puntajes que definen el target. |
+| One-hot encoding | Transformación que convierte una variable categórica en columnas 0/1, una por categoría, para que el modelo pueda usarla. |
+| Percentil | Valor bajo el cual queda cierto porcentaje de los datos; el percentil 25 de `punt_global` (234) es el umbral del target. |
 | TODO | — |
 
 ## 14. Referencias
