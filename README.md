@@ -306,15 +306,16 @@ El análisis completo está en [`docs/analisis_etico.md`](docs/analisis_etico.md
 - **Uso responsable:** sirve para planear apoyos de forma agregada y con revisión humana. **No debe usarse para decisiones individuales.**
 
 ## 9. Riesgos técnicos
+
 *Responsables: todos*
 
 | # | Riesgo | Impacto | Mitigación |
 |---|---|---|---|
-| R1 | Fuga de información (usar `punt_*` como entrada) | TODO | TODO |
-| R2 | Desbalance de clases | TODO | TODO |
-| R3 | Sesgo socioeconómico / discriminación por variables *proxy* | TODO | TODO |
-| R4 | Sobreajuste del árbol de decisión | TODO | TODO |
-| R5 | Volumen de datos y límites de la API | TODO | TODO |
+| R1 | Fuga de información (usar `punt_*` como entrada o repetir estudiantes entre conjuntos) | Alto: métricas infladas que no se sostienen en uso real. Con duplicados, el F1 en validación subía de 0,504 a 0,522 | Lista blanca `FEATURES`, `ValueError` ante prefijos prohibidos, duplicados eliminados antes de separar y preprocesamiento ajustado solo con train |
+| R2 | Desbalance de clases (24,57 % de clase 1) | Alto: un modelo trivial logra 75 % de accuracy sin detectar a nadie | Selección por F1, `class_weight="balanced"`, separación estratificada y comparación con baseline |
+| R3 | Sesgo socioeconómico / discriminación por variables *proxy* | Alto: brecha de recall de 0,41 por estrato y muchos falsos positivos en grupos vulnerables | Métricas por grupo, comparación sin variables sensibles y uso limitado a decisiones agregadas |
+| R4 | Sobreajuste del árbol de decisión | Medio: un árbol profundo memoriza train y pierde capacidad de generalizar | Límites de `max_depth` y `min_samples_leaf`, selección en validación y test intacto. Se eligió el modelo lineal |
+| R5 | Volumen de datos y límites de la API | Medio: descargas lentas o fallidas | Paginación de 50.000 filas, 3 reintentos con timeout de 120 s y copia local en CSV y SQLite |
 
 ## 10. Cómo ejecutar
 ```bash
