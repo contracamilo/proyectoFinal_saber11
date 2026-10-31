@@ -30,7 +30,7 @@ Las secretarías de educación y los equipos de orientación de los colegios nec
 Este proyecto propone un modelo de clasificación que, a partir de información de contexto disponible antes de la prueba (características del colegio y condiciones del hogar), estima el **riesgo de bajo desempeño** en Saber 11, para apoyar decisiones **agregadas** de asignación de recursos.
 
 - **Pregunta:** ¿qué tan bien puede un modelo sencillo identificar contextos con riesgo de bajo desempeño usando solo variables previas a la prueba?
-- **Variable objetivo:** `riesgo_bajo_desempeno` (1 si `punt_global` < umbral definido en el EDA; propuesta: percentil 25).
+- **Variable objetivo:** `riesgo_bajo_desempeno` (1 si `punt_global` < 234, el percentil 25 del periodo).
 
 ### User persona
 
@@ -51,7 +51,7 @@ Este proyecto propone un modelo de clasificación que, a partir de información 
 | Reporta métricas globales y por grupo poblacional | Usa los puntajes de la prueba como variables de entrada |
 
 **Supuestos y restricciones**
-- Alcance de datos: periodo `20224`, colegios ubicados en Bogotá, configurable en `config/config.yaml`. Se confirma con el EDA.
+- Alcance de datos: periodo `20224`, colegios ubicados en Bogotá, configurable en `config/config.yaml`.
 - Solo herramientas open source; ejecución local, sin servicios en la nube.
 - Es un *product concept*: no incluye autenticación, interfaz gráfica propia ni despliegue productivo. Se documentan como evolución futura.
 
@@ -172,9 +172,9 @@ Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectur
 | ADR | Decisión | Responsable | Estado |
 |---|---|---|---|
 | [001](docs/adr/0001-lenguaje-framework-estilo.md) | Python + FastAPI + arquitectura en capas | Camilo | Aceptada |
-| 002 | Selección del modelo | Richard | Pendiente |
+| [002](docs/adr/0002-seleccion-modelo.md) | Regresión logística elegida por F1 en validación | Richard | Aceptada |
 | [003](docs/adr/0003-almacenamiento-despliegue.md) | SQLite + joblib + uvicorn local | Camilo | Aceptada |
-| 004 | Estrategia de separación de datos | Daniel | Pendiente |
+| [004](docs/adr/0004-separacion-datos.md) | Separación 70/15/15 estratificada, sin duplicados | Daniel | Aceptada |
 
 ## 6. Modelo
 *Responsable: Richard*
