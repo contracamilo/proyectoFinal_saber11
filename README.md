@@ -378,7 +378,23 @@ python scripts/medir_latencia.py      # Con la API en ejecución
 ```
 
 ## 12. Conclusiones y recomendaciones
-TODO.
+
+### Conclusiones técnicas
+- **El modelo funciona, con un desempeño moderado.** Supera al baseline: F1 de 0,5126 frente a 0, y ROC-AUC de 0,7539 frente a 0,5. Detecta cerca de 73 de cada 100 estudiantes en riesgo.
+- **Sus alertas no son precisas.** Cerca de 6 de cada 10 son falsas, por lo que sirve para orientar la planeación agregada, pero no para señalar personas.
+- **El contexto explica solo una parte del desempeño.** Con variables previas a la prueba, el modelo no distingue por completo qué estudiantes estarán en riesgo.
+- **Hay brechas de equidad.** Las cuatro variables auditadas superan el criterio de 0,10, y la mayor es la de estrato (0,41).
+- **La calidad de los datos cambió el resultado.** La mitad de la fuente eran filas duplicadas; quitarlas dio una medición honesta.
+- **El sistema cumple sus criterios técnicos.** El p95 es de 43,95 ms, las entradas inválidas devuelven 422 y los resultados son reproducibles.
+
+### Recomendaciones
+1. Quitar las variables sensibles si el sistema llega a usarse: el F1 no cae y se reducen las brechas de género y área.
+2. Agregar variables que describan mejor al estudiante, como su historial académico o la asistencia, si se obtienen con garantías de privacidad.
+3. Entrenar con varios periodos y validar con un periodo posterior.
+4. Probar el umbral de decisión por grupo o ajustarlo según el presupuesto de apoyo disponible.
+5. Probar modelos como Random Forest o Gradient Boosting, si se mantiene la explicabilidad.
+6. Separar por colegio para medir qué tan bien generaliza a colegios no vistos.
+7. Reportar resultados agregados por colegio o localidad, y no por estudiante.
 
 ## 13. Glosario
 | Término | Definición |
