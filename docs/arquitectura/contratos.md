@@ -85,5 +85,5 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 | Método | Ruta | Entrada | Salida |
 |---|---|---|---|
 | GET | `/health` | — | `{"status": "ok", "model": "<model_name>"}` |
-| POST | `/predict` | JSON con las columnas de `FEATURES` | `{"riesgo": 0/1, "probabilidad": float}` |
+| POST | `/predict` | JSON con las columnas de `FEATURES` | `{"riesgo": 0/1, "probabilidad": float}`. `probabilidad` está calibrada con los parámetros de `model_meta.json` |
 | GET | `/metrics` | — | Contenido de `reports/metrics.json` |

@@ -49,6 +49,10 @@ El beneficio esperado es ayudar a planear apoyos académicos y distribuir recurs
 
 La regresión logística se considera como una alternativa relativamente interpretable: permite examinar cómo se asocian las variables con la probabilidad estimada, manteniendo constantes las demás variables del modelo. La interpretación debe acompañarse de las métricas de evaluación y de las limitaciones de los datos.
 
+La transparencia también exige que la probabilidad informada signifique lo que dice. Sin calibrar, el puntaje del modelo casi duplicaba el riesgo real (0,4499 frente a 0,2457), lo que podía exagerar la gravedad de un perfil. La API ahora informa una probabilidad calibrada, y una alerta significa riesgo igual o mayor que el promedio, no certeza.
+
+La importancia por permutación muestra que el modelo depende sobre todo de la jornada del colegio, la edad y la educación de los padres ([`reports/analisis_modelo.md`](../reports/analisis_modelo.md)). Estas variables describen el contexto del estudiante, no su capacidad. Además, una importancia baja no descarta un sesgo: el estrato puntúa poco, pero parte de su información puede estar en otras variables.
+
 El género y el estrato son variables sensibles o relacionadas con características sensibles. Su inclusión puede ayudar a evaluar desempeño y diferencias entre grupos, pero también puede reproducir patrones de desigualdad. Como análisis complementario, se comparó el modelo completo con uno entrenado sin las cuatro variables sensibles:
 
 | Modelo | F1 (test) | Brecha género | Brecha estrato | Brecha naturaleza | Brecha área |

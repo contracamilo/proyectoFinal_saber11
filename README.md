@@ -241,6 +241,7 @@ Se eligió **regresión logística** porque es un modelo básico, interpretable 
 - **Preprocesamiento:** categóricas con imputación por moda y `OneHotEncoder(handle_unknown="ignore")`; `edad` con imputación por mediana y `StandardScaler`. Va dentro del `Pipeline` y se ajusta solo con train.
 - **Entrenamiento:** 53.377 estudiantes y 75 columnas tras la codificación.
 - **Qué mira el modelo:** los coeficientes más altos están en jornada nocturna y sabatina, y en padres sin educación. Los más bajos, en jornada completa y padres con postgrado. Son asociaciones, no causas.
+- **Calibración:** `class_weight="balanced"` infla los puntajes del modelo. La API los corrige con una calibración de Platt ajustada en validación y guardada en `models/model_meta.json`. La decisión de `riesgo` sigue usando el puntaje original.
 
 ## 7. Calidad y evaluación
 
@@ -277,6 +278,28 @@ Se eligió **regresión logística** porque es un modelo básico, interpretable 
 - **Falsos positivos (3.116):** estudiantes sin riesgo marcados como en riesgo. Su costo es usar recursos donde no hacían falta y etiquetar sin razón.
 - **Falsos negativos (768):** estudiantes en riesgo que no se detectan. Es el error más grave para este propósito, porque se quedan sin apoyo.
 
+### Calibración de la probabilidad
+`/predict` devuelve dos cosas distintas: `riesgo` es la alerta y `probabilidad` es la probabilidad calibrada de bajo desempeño. Antes de calibrar, el puntaje promediaba 0,4499 frente a una tasa real de 0,2457, y su error de Brier era peor que dar siempre la tasa base.
+
+| Medida en test | Puntaje del modelo | Probabilidad calibrada | Referencia |
+|---|---|---|---|
+| Media | 0,4499 | 0,2458 | Tasa real: 0,2457 |
+| Brier (menor es mejor) | 0,2035 | 0,1574 | Tasa base: 0,1853 |
+
+La calibración conserva el orden de los perfiles y no cambia la decisión, así que las métricas, la matriz de confusión y la equidad son las mismas. El modelo alerta desde una probabilidad calibrada de 0,2471, casi igual a la tasa base. Por eso, `riesgo = 1` se lee como "riesgo igual o mayor que el promedio", no como "más probable que no".
+
+### Validación cruzada e importancia de variables
+La validación cruzada estratificada de 5 particiones, sobre train y validación, confirma la selección con baja variación ([reporte](reports/analisis_modelo.md)):
+
+| Modelo | F1 | ROC-AUC |
+|---|---|---|
+| **logreg** | 0,5164 ± 0,0038 | 0,7575 ± 0,0034 |
+| tree | 0,5055 ± 0,0037 | 0,7425 ± 0,0041 |
+
+La importancia por permutación en test mide cuánto cae el ROC-AUC al desordenar cada variable. `cole_jornada` es la más importante (0,0837), seguida de `edad` (0,0229) y de la educación de la madre (0,0141) y del padre (0,0122). Las variables están correlacionadas: que `fami_estratovivienda` puntúe bajo (0,0012) no significa que el estrato no se relacione con el riesgo, porque otras variables pueden absorber esa información.
+
+![Importancia de variables](reports/figures/importancia_variables.png)
+
 ### Criterios de aceptación del software
 Cada criterio viene de un escenario de [`drivers-calidad.md`](docs/arquitectura/drivers-calidad.md).
 
@@ -284,6 +307,7 @@ Cada criterio viene de un escenario de [`drivers-calidad.md`](docs/arquitectura/
 |---|---|---|---|
 | El modelo supera al baseline | F1 mayor que el del baseline | ✅ 0,5126 frente a 0 | `reports/metrics.json` |
 | QA1 Rendimiento | p95 < 300 ms en local, con 10 clientes y 500 solicitudes | ✅ 43,95 ms, 0 errores | `reports/latencia.json` |
+| Calibración | Brier menor que el de la tasa base | ✅ 0,1574 frente a 0,1853 | `reports/metrics.json` |
 | QA2 Confiabilidad | Entrada inválida → 422 con el campo que falla | ✅ | `tests/test_api.py` |
 | QA3 Integridad | Mismas filas al repetir la carga; 0 duplicados tras `clean()` | ✅ | `tests/test_data.py`, notebook de EDA |
 | QA4 Disponibilidad | 3 reintentos por página; un fallo no daña el CSV existente | ✅ | `tests/test_data.py` |
@@ -339,6 +363,7 @@ python -m saber11.data.repository     # Carga los datos en SQLite
 python -m saber11.models.train        # Entrena y selecciona el modelo
 python -m saber11.models.evaluate     # Genera métricas y matriz de confusión
 python -m saber11.models.fairness     # Genera el reporte de equidad
+python -m saber11.models.analisis     # Genera validación cruzada e importancia de variables
 ```
 
 **3. Levantar la API**
@@ -351,7 +376,7 @@ Abre http://127.0.0.1:8000/docs para probarla desde Swagger UI.
 |---|---|---|
 | GET | `/health` | Estado del servicio y modelo cargado |
 | POST | `/predict` | Riesgo y probabilidad de un perfil de contexto |
-| GET | `/metrics` | Métricas de test del modelo |
+| GET | `/metrics` | Métricas de test y calibración del modelo |
 
 **4. Publicar en la nube**
 
@@ -364,6 +389,8 @@ python scripts/medir_latencia.py      # Con la API en ejecución
 python scripts/medir_latencia.py --url https://saber11-api.onrender.com --salida reports/latencia_render.json
 ```
 
+GitHub Actions ejecuta `pytest` en cada PR hacia `develop` ([`tests.yml`](.github/workflows/tests.yml)). `requirements.txt` fija todas las versiones para que el entorno sea reproducible.
+
 ## 11. Estructura del repositorio
 ```
 ├── config/            # Parámetros (periodo, región, umbral, semillas)
@@ -375,7 +402,7 @@ python scripts/medir_latencia.py --url https://saber11-api.onrender.com --salida
 │   └── evidencias/    # Capturas y evidencias.pdf
 ├── models/            # Artefactos entrenados (.joblib)
 ├── notebooks/         # EDA y experimentos
-├── reports/           # Métricas, equidad, latencia y figuras
+├── reports/           # Métricas, equidad, análisis del modelo, latencia y figuras
 ├── scripts/           # Medición de latencia
 ├── src/saber11/
 │   ├── data/          # Capa de datos: ingesta y almacenamiento
@@ -391,6 +418,7 @@ python scripts/medir_latencia.py --url https://saber11-api.onrender.com --salida
 - **El modelo funciona, con un desempeño moderado.** Supera al baseline: F1 de 0,5126 frente a 0, y ROC-AUC de 0,7539 frente a 0,5. Detecta cerca de 73 de cada 100 estudiantes en riesgo.
 - **Sus alertas no son precisas.** Cerca de 6 de cada 10 son falsas, por lo que sirve para orientar la planeación agregada, pero no para señalar personas.
 - **El contexto explica solo una parte del desempeño.** Con variables previas a la prueba, el modelo no distingue por completo qué estudiantes estarán en riesgo.
+- **La probabilidad necesitaba calibración.** Sin ella, la API la casi duplicaba: 0,4499 frente a una tasa real de 0,2457. Ahora coincide con la tasa real, sin cambiar las decisiones.
 - **Hay brechas de equidad.** Las cuatro variables auditadas superan el criterio de 0,10, y la mayor es la de estrato (0,41).
 - **La calidad de los datos cambió el resultado.** La mitad de la fuente eran filas duplicadas; quitarlas dio una medición honesta.
 - **El sistema cumple sus criterios técnicos en local.** El p95 es de 43,95 ms, las entradas inválidas devuelven 422 y los resultados son reproducibles. En Render responde sin errores, pero con 10 clientes simultáneos el p95 sube a 1,27 s.
@@ -407,17 +435,20 @@ python scripts/medir_latencia.py --url https://saber11-api.onrender.com --salida
 ## 13. Glosario
 | Término | Definición |
 |---|---|
-| ADR | *Architecture Decision Record*: registro de una decisión de arquitectura, su contexto y consecuencias. |
-| C4 | Modelo para describir arquitectura en cuatro niveles: contexto, contenedores, componentes y código. |
 | Accuracy | Proporción de predicciones correctas sobre el total. |
+| ADR | *Architecture Decision Record*: registro de una decisión de arquitectura, su contexto y consecuencias. |
 | API Socrata | Interfaz de datos.gov.co para consultar datasets por HTTP. |
 | Baseline | Modelo de referencia muy simple que sirve de piso de comparación. |
 | Brecha de recall | Diferencia de recall entre el grupo con mayor y el de menor valor. |
+| C4 | Modelo para describir arquitectura en cuatro niveles: contexto, contenedores, componentes y código. |
+| Calibración | Ajuste que hace que una probabilidad coincida con la frecuencia real; de 100 casos con 30 %, unos 30 deben ser positivos. |
 | EDA | Análisis exploratorio de datos: revisar los datos antes de modelar. |
+| Error de Brier | Error cuadrático medio entre la probabilidad estimada y el resultado real; menor es mejor. |
 | Estratificación | Separar los datos conservando la misma proporción de clases en cada conjunto. |
 | F1 | Media armónica entre precision y recall. |
 | Fuga de información | Usar en el entrenamiento información que no estaría disponible al predecir. |
 | Idempotencia | Propiedad de una operación que, repetida, deja el mismo resultado. |
+| Importancia por permutación | Caída de una métrica al desordenar una variable; indica cuánto depende el modelo de ella. |
 | Matriz de confusión | Tabla que cruza valores reales y predichos: VP, FP, VN y FN. |
 | One-hot encoding | Convertir una categoría en columnas de 0 y 1. |
 | p95 | Valor por debajo del cual queda el 95 % de las mediciones. |
@@ -429,11 +460,15 @@ python scripts/medir_latencia.py --url https://saber11-api.onrender.com --salida
 | Regresión logística | Modelo lineal que estima la probabilidad de una clase. |
 | ROC-AUC | Capacidad de ordenar positivos por encima de negativos; 0,5 equivale al azar. |
 | Sobreajuste | Cuando un modelo memoriza train y generaliza mal. |
+| Validación cruzada | Repetir entrenamiento y evaluación en varias particiones para medir la estabilidad del resultado. |
 
 ## 14. Referencias
 - ICFES. *Resultados únicos Saber 11*. datos.gov.co. https://www.datos.gov.co/Educaci-n/Resultados-nicos-Saber-11/kgxf-xxbe
 - Brown, S. *The C4 model for visualising software architecture*. https://c4model.com
 - Nygard, M. *Documenting Architecture Decisions*. https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
+- Platt, J. (1999). *Probabilistic outputs for support vector machines and comparisons to regularized likelihood methods*. Advances in Large Margin Classifiers, MIT Press.
+- Scikit-learn. *Probability calibration*. https://scikit-learn.org/stable/modules/calibration.html
+- Scikit-learn. *Permutation feature importance*. https://scikit-learn.org/stable/modules/permutation_importance.html
 - Pedregosa, F. et al. (2011). *Scikit-learn: Machine Learning in Python*. Journal of Machine Learning Research, 12, 2825-2830. https://scikit-learn.org
 - FastAPI. *Documentation*. https://fastapi.tiangolo.com
 - pandas. *Documentation*. https://pandas.pydata.org
@@ -449,7 +484,7 @@ Evidencias de cada etapa del workflow de ML, con las salidas reales de los coman
 |---|---|
 | Datos | `src/saber11/data/`, [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) |
 | Procesamiento | `src/saber11/features/preprocessing.py` |
-| Modelo | `src/saber11/models/`, [`reports/metricas.md`](reports/metricas.md) |
+| Modelo | `src/saber11/models/`, [`reports/metricas.md`](reports/metricas.md), [`reports/analisis_modelo.md`](reports/analisis_modelo.md) |
 | Equidad | [`reports/equidad.md`](reports/equidad.md), [`docs/analisis_etico.md`](docs/analisis_etico.md) |
 | Servicio | `src/saber11/api/`, [`reports/latencia.json`](reports/latencia.json), [`reports/latencia_render.json`](reports/latencia_render.json) |
 | Pruebas | `tests/` |
