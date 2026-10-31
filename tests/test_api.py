@@ -30,7 +30,11 @@ class ModeloFalso:
 @pytest.fixture
 def cliente():
     """Crea un cliente con el servicio ya cargado, sin ejecutar el arranque real."""
-    metadatos = {"model_name": "falso", "features": FEATURES}
+    metadatos = {
+        "model_name": "falso",
+        "features": FEATURES,
+        "calibracion": {"pendiente": 1.0, "intercepto": -1.0},
+    }
     main.app.state.servicio = ServicioPrediccion(ModeloFalso(0.71), metadatos)
     return TestClient(main.app)
 
@@ -50,7 +54,13 @@ def test_health_informa_el_modelo(cliente):
 def test_predict_devuelve_riesgo_y_probabilidad(cliente):
     respuesta = cliente.post("/predict", json=PERFIL)
     assert respuesta.status_code == 200
-    assert respuesta.json() == {"riesgo": 1, "probabilidad": 0.71}
+    assert respuesta.json() == {"riesgo": 1, "probabilidad": pytest.approx(0.4739, abs=1e-4)}
+
+
+def test_el_riesgo_se_decide_con_el_puntaje_sin_calibrar(cliente):
+    cuerpo = cliente.post("/predict", json=PERFIL).json()
+    assert cuerpo["riesgo"] == 1
+    assert cuerpo["probabilidad"] < 0.5
 
 
 def test_predict_respeta_el_orden_de_las_variables(cliente):
@@ -59,8 +69,14 @@ def test_predict_respeta_el_orden_de_las_variables(cliente):
 
 
 def test_umbral_de_decision():
-    servicio = ServicioPrediccion(ModeloFalso(0.49), {"model_name": "falso", "features": FEATURES})
-    assert servicio.predecir(PERFIL) == (0, 0.49)
+    metadatos = {
+        "model_name": "falso",
+        "features": FEATURES,
+        "calibracion": {"pendiente": 1.0, "intercepto": 0.0},
+    }
+    riesgo, probabilidad = ServicioPrediccion(ModeloFalso(0.49), metadatos).predecir(PERFIL)
+    assert riesgo == 0
+    assert probabilidad == pytest.approx(0.49)
 
 
 @pytest.mark.parametrize(

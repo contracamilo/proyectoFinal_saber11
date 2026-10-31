@@ -32,5 +32,14 @@
       768,
       2042
     ]
-  ]
+  ],
+  "calibration": {
+    "tasa_real": 0.24567232033572303,
+    "media_puntaje": 0.44990017676584415,
+    "media_probabilidad": 0.24584323064990876,
+    "brier_tasa_base": 0.18531743137877546,
+    "brier_puntaje": 0.20351479493217203,
+    "brier_probabilidad": 0.15739553042775167,
+    "probabilidad_en_el_umbral": 0.24712501460382696
+  }
 }

@@ -43,6 +43,8 @@ Formato: *fuente → estímulo → entorno → respuesta → **medida***.
 | **Preprocesamiento dentro del `Pipeline`**, ajustado solo con train | Validez (QA6) | Evita fuga de estadísticas de validación y test | `preprocessing.py`, `train.py` |
 | **Lista blanca de variables** + verificación de prefijos prohibidos | Validez, privacidad (QA6, QA9) | Solo entran variables previas a la prueba y no identificadoras | `FEATURES`, `LEAKAGE_PREFIXES` |
 | **Métricas por grupo sensible** | Equidad (QA7) | Hace visibles las diferencias de desempeño entre grupos | `fairness.py` |
+| **Calibración de Platt** de la probabilidad, sin cambiar la decisión | Validez, transparencia (QA6, QA7) | Evita informar un riesgo inflado por `class_weight="balanced"` | `calibracion.py`, `train.py`, `model_service.py` |
+| **Pruebas automáticas en cada PR** y **versiones fijas** | Mantenibilidad, reproducibilidad (QA5, QA8) | Detecta regresiones antes del merge y mantiene el mismo entorno | `.github/workflows/tests.yml`, `requirements.txt` |
 | **Contratos entre capas** | Mantenibilidad (QA8) | Cada capa cambia sin romper las demás mientras respete su interfaz | [`contratos.md`](contratos.md) |
 
 ## 4. Proyección a un entorno real

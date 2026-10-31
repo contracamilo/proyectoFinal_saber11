@@ -10,7 +10,7 @@ flowchart TB
     datosgov[("datos.gov.co<br/>[externo]")]
     db[("SQLite<br/>saber11.db")]
     art[("Artefactos<br/>model.joblib, model_meta.json")]
-    rep[("Reportes<br/>metrics.json, metricas.md,<br/>equidad.md, figuras")]
+    rep[("Reportes<br/>metrics.json, metricas.md, equidad.md,<br/>analisis_modelo.md, figuras")]
 
     subgraph datos["Capa de datos — saber11.data"]
         ing["<b>Ingesta</b><br/>[ingest.py]<br/>download()"]
@@ -28,6 +28,7 @@ flowchart TB
         train["<b>Entrenador</b><br/>[train.py]<br/>baseline, logreg, tree"]
         evalc["<b>Evaluador</b><br/>[evaluate.py]<br/>métricas + matriz de confusión"]
         fair["<b>Auditor de equidad</b><br/>[fairness.py]<br/>métricas por grupo"]
+        anal["<b>Analizador</b><br/>[analisis.py]<br/>validación cruzada, importancia"]
     end
 
     ing -- "GET paginado" --> datosgov
@@ -40,10 +41,13 @@ flowchart TB
     train -- "guarda Pipeline" --> art
     art --> evalc
     art --> fair
+    art --> anal
     split -- "test" --> evalc
     split -- "test" --> fair
+    split -- "particiones" --> anal
     evalc --> rep
     fair --> rep
+    anal --> rep
     cfg -.-> ing
     cfg -.-> repo
     cfg -.-> split
@@ -62,7 +66,7 @@ flowchart TB
         router["<b>Rutas HTTP</b><br/>[main.py]<br/>GET /health · POST /predict · GET /metrics"]
         schemas["<b>Esquemas</b><br/>[schemas.py]<br/>PerfilEntrada, Prediccion (Pydantic)"]
         loader["<b>Cargador del modelo</b><br/>[model_service.py]<br/>carga una vez al iniciar"]
-        predictor["<b>Servicio de predicción</b><br/>[model_service.py]<br/>predict_proba → riesgo 0/1"]
+        predictor["<b>Servicio de predicción</b><br/>[model_service.py]<br/>puntaje → riesgo 0/1 y probabilidad calibrada"]
     end
 
     usuario -- "HTTP/JSON" --> router
@@ -84,8 +88,10 @@ flowchart TB
 | Entrenador | `models/train.py` | Entrenar, comparar en validación y guardar el mejor `Pipeline` | Procesamiento | Richard |
 | Evaluador | `models/evaluate.py` | Métricas en test, matriz de confusión, comparación con baseline | Artefactos, separador | Richard |
 | Auditor de equidad | `models/fairness.py` | Métricas por grupo sensible | Artefactos, separador | Richard |
+| Analizador | `models/analisis.py` | Validación cruzada e importancia de variables | Artefactos, separador | Camilo |
+| Calibración | `calibracion.py` | Convertir el puntaje en probabilidad; lo comparten entrenamiento y API | — | Camilo |
 | Rutas HTTP | `api/main.py` | Exponer los endpoints | Esquemas, servicio de predicción | Camilo |
 | Esquemas | `api/schemas.py` | Validar la entrada (422 si es inválida) y dar forma a la salida | — | Camilo |
-| Cargador y servicio de predicción | `api/model_service.py` | Cargar el modelo una vez y convertir la probabilidad en riesgo | Artefactos | Camilo |
+| Cargador y servicio de predicción | `api/model_service.py` | Cargar el modelo una vez y convertir el puntaje en riesgo y probabilidad | Artefactos, Calibración | Camilo |
 
 **Relaciones que NO existen, por diseño:** la API no usa la capa de datos ni la de procesamiento. Solo conoce el `Pipeline` serializado, que ya incluye el preprocesamiento. Si el código importara `saber11.data` desde `saber11.api`, se rompería la arquitectura en capas.

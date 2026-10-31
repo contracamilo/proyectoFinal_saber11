@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import numpy as np
 import pandas as pd
 import sklearn
 from sklearn.base import BaseEstimator
@@ -21,6 +22,7 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeClassifier
 
+from saber11.calibracion import Calibracion, logit
 from saber11.config import load_config
 from saber11.data.repository import read_raw
 from saber11.features.preprocessing import (
@@ -57,6 +59,19 @@ def calcular_metricas(modelo: Pipeline, datos: pd.DataFrame) -> Metricas:
         "recall": float(recall_score(y_real, y_predicho, zero_division=0)),
         "f1": float(f1_score(y_real, y_predicho, zero_division=0)),
         "roc_auc": float(roc_auc_score(y_real, probabilidades)),
+    }
+
+
+def ajustar_calibracion(modelo: Pipeline, validacion: pd.DataFrame) -> Calibracion:
+    """Ajusta la calibración en validación: class_weight infla los puntajes."""
+    puntajes = modelo.predict_proba(validacion[FEATURES])[:, 1]
+    regresion = LogisticRegression(C=1e6).fit(
+        np.reshape(logit(puntajes), (-1, 1)),
+        validacion[TARGET],
+    )
+    return {
+        "pendiente": float(regresion.coef_[0, 0]),
+        "intercepto": float(regresion.intercept_[0]),
     }
 
 
@@ -117,6 +132,7 @@ def _guardar_resultados(
     metricas: dict[str, Metricas],
     nombre_modelo: str,
     candidatos: dict[str, Pipeline],
+    calibracion: Calibracion,
 ) -> None:
     """Guarda los candidatos, el pipeline seleccionado y sus metadatos."""
     ruta_modelo = Path(cfg["model"]["artifact_path"])
@@ -132,6 +148,7 @@ def _guardar_resultados(
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "sklearn_version": sklearn.__version__,
         "metrics_val": metricas[nombre_modelo],
+        "calibracion": calibracion,
     }
     ruta_metadatos = ruta_modelo.parent / "model_meta.json"
     ruta_metadatos.write_text(
@@ -152,7 +169,8 @@ def entrenar() -> None:
         validacion,
         cfg["split"]["random_state"],
     )
-    _guardar_resultados(cfg, umbral, metricas, nombre_modelo, candidatos)
+    calibracion = ajustar_calibracion(candidatos[nombre_modelo], validacion)
+    _guardar_resultados(cfg, umbral, metricas, nombre_modelo, candidatos, calibracion)
 
     print("Métricas en validación (clase positiva: riesgo = 1)")
     encabezado = (

@@ -7,16 +7,19 @@ import joblib
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
+from saber11.calibracion import calibrar
+
 UMBRAL_DECISION = 0.5
 
 
 class ServicioPrediccion:
-    """Mantiene el Pipeline en memoria y convierte probabilidades en riesgo."""
+    """Mantiene el Pipeline en memoria y convierte puntajes en riesgo y probabilidad."""
 
     def __init__(self, modelo: Pipeline, metadatos: dict[str, Any]) -> None:
         self.modelo = modelo
         self.nombre = metadatos["model_name"]
         self.variables = metadatos["features"]
+        self.calibracion = metadatos["calibracion"]
 
     @classmethod
     def cargar(cls, ruta_modelo: str) -> "ServicioPrediccion":
@@ -31,7 +34,7 @@ class ServicioPrediccion:
         return cls(joblib.load(ruta), metadatos)
 
     def predecir(self, perfil: dict[str, Any]) -> tuple[int, float]:
-        """Devuelve el riesgo (0 o 1) y la probabilidad de la clase 1."""
+        """Devuelve el riesgo (0 o 1) y la probabilidad calibrada de la clase 1."""
         fila = pd.DataFrame([perfil], columns=self.variables)
-        probabilidad = float(self.modelo.predict_proba(fila)[0, 1])
-        return int(probabilidad >= UMBRAL_DECISION), probabilidad
+        puntaje = float(self.modelo.predict_proba(fila)[0, 1])
+        return int(puntaje >= UMBRAL_DECISION), float(calibrar(puntaje, self.calibracion))

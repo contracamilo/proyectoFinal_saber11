@@ -18,7 +18,7 @@ Para demostrar que el modelo funciona hay que medirlo con datos que no vio. Esto
 |---|---|---|
 | **70/15/15 estratificado** | Validación para elegir el modelo y test intacto para el resultado final; misma proporción de clases; rápido | Menos datos para entrenar que con k-fold |
 | 80/20 simple, sin validación | Lo más sencillo | Elegir el modelo con test contamina el resultado final |
-| Validación cruzada k-fold | Aprovecha mejor los datos; da una estimación más estable | Multiplica el tiempo de entrenamiento; con 76.253 estudiantes la ganancia es menor |
+| Validación cruzada k-fold | Aprovecha mejor los datos; da una estimación más estable | Multiplica el tiempo de entrenamiento; con 76.253 estudiantes la ganancia es menor. Se usa solo para confirmar la selección, no para reemplazar esta separación |
 | Separación temporal por periodo | Simula el uso real: entrenar con el pasado y predecir el futuro | Requiere varios periodos y el alcance actual solo tiene uno |
 
 ## Criterios / métricas de evaluación

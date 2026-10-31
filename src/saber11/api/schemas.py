@@ -80,8 +80,14 @@ class PerfilEntrada(BaseModel):
 class Prediccion(BaseModel):
     """Resultado de una predicción de riesgo."""
 
-    riesgo: Literal[0, 1]
-    probabilidad: float = Field(ge=0, le=1)
+    riesgo: Literal[0, 1] = Field(
+        description="Alerta del modelo; prioriza detectar casos, no la certeza."
+    )
+    probabilidad: float = Field(
+        ge=0,
+        le=1,
+        description="Probabilidad calibrada de bajo desempeño; una alerta puede tener menos de 0,5.",
+    )
 
 
 class Estado(BaseModel):
