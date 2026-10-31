@@ -2,7 +2,7 @@
 
 - **Estado:** Aceptada
 - **Fecha:** 2026-10-31
-- **Autor(es):** Richard Caicedo, Camilo Rivera Quintero
+- **Autor(es):** Camilo Rivera Quintero
 
 ## Contexto
 Hay que clasificar el riesgo de bajo desempeño (`punt_global` < 234) con un modelo básico de Machine Learning, usando solo variables previas a la prueba. Estos son los drivers que condicionan la decisión:

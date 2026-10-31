@@ -226,9 +226,9 @@ Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectur
 | ADR | Decisión | Responsable | Estado |
 |---|---|---|---|
 | [001](docs/adr/0001-lenguaje-framework-estilo.md) | Python + FastAPI + arquitectura en capas | Camilo | Aceptada |
-| [002](docs/adr/0002-seleccion-modelo.md) | Regresión logística elegida por F1 en validación | Richard | Aceptada |
+| [002](docs/adr/0002-seleccion-modelo.md) | Regresión logística elegida por F1 en validación | Camilo | Aceptada |
 | [003](docs/adr/0003-almacenamiento-despliegue.md) | SQLite + joblib + uvicorn local | Camilo | Aceptada |
-| [004](docs/adr/0004-separacion-datos.md) | Separación 70/15/15 estratificada, sin duplicados | Daniel | Aceptada |
+| [004](docs/adr/0004-separacion-datos.md) | Separación 70/15/15 estratificada, sin duplicados | Camilo | Aceptada |
 
 ## 6. Modelo
 

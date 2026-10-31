@@ -2,7 +2,7 @@
 
 - **Estado:** Aceptada
 - **Fecha:** 2026-10-31
-- **Autor(es):** Daniel Charry, Camilo Rivera Quintero
+- **Autor(es):** Camilo Rivera Quintero
 
 ## Contexto
 Para demostrar que el modelo funciona hay que medirlo con datos que no vio. Estos son los drivers que condicionan la decisión:
