@@ -14,7 +14,7 @@ data/processed/*
 !data/processed/.gitkeep
 *.db
 models/*.joblib
-models/model_meta.json
+!models/model.joblib
 
 # Sistema / IDE
 .DS_Store
