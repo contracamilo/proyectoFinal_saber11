@@ -434,4 +434,15 @@ python scripts/medir_latencia.py      # Con la API en ejecución
 - Hardt, M., Price, E. y Srebro, N. (2016). *Equality of Opportunity in Supervised Learning*. NeurIPS.
 
 ## 15. Evidencias
-Capturas de cada etapa del workflow de ML consolidadas en [`docs/evidencias/evidencias.pdf`](docs/evidencias/).
+
+Evidencias de cada etapa del workflow de ML, con las salidas reales de los comandos, en [`docs/evidencias/evidencias.pdf`](docs/evidencias/evidencias.pdf).
+
+| Etapa | Evidencia |
+|---|---|
+| Datos | `src/saber11/data/`, [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) |
+| Procesamiento | `src/saber11/features/preprocessing.py` |
+| Modelo | `src/saber11/models/`, [`reports/metricas.md`](reports/metricas.md) |
+| Equidad | [`reports/equidad.md`](reports/equidad.md), [`docs/analisis_etico.md`](docs/analisis_etico.md) |
+| Servicio | `src/saber11/api/`, [`reports/latencia.json`](reports/latencia.json) |
+| Pruebas | `tests/` |
+
