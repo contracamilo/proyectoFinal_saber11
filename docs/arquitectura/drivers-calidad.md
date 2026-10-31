@@ -19,7 +19,7 @@ Formato: *fuente → estímulo → entorno → respuesta → **medida***.
 
 | Id | Atributo | Escenario | Medida de aceptación | Cómo se verifica |
 |---|---|---|---|---|
-| QA1 | **Rendimiento** | Un usuario envía `POST /predict` con un perfil válido, con la API en ejecución local y 10 clientes concurrentes | **p95 < 300 ms** en 500 solicitudes | Script de carga en `tests/test_api.py` (o `scripts/medir_latencia.py`) + captura en evidencias |
+| QA1 | **Rendimiento** | Un usuario envía `POST /predict` con un perfil válido, con la API en ejecución local y 10 clientes concurrentes | **p95 < 300 ms** en 500 solicitudes | `scripts/medir_latencia.py` → `reports/latencia.json` |
 | QA2 | **Confiabilidad** | Un cliente envía un JSON incompleto o con una categoría inválida | Respuesta **422** con el campo que falla; **0 %** de respuestas 500 | Tests de la API con entradas inválidas |
 | QA3 | **Integridad de datos (idempotencia)** | El equipo ejecuta la ingesta y la carga a SQLite dos veces seguidas | El número de filas de `resultados` es **idéntico** en ambas ejecuciones; 0 duplicados de `estu_consecutivo` tras `clean()` | Test de datos + captura de las dos ejecuciones |
 | QA4 | **Disponibilidad de la fuente** | La API de datos.gov.co tarda o falla en una página | Hasta **3 reintentos** por página con timeout de 120 s; si persiste, error claro sin corromper el CSV existente | Revisión de `ingest.py` + log de ejecución |
