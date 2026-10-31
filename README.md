@@ -75,7 +75,7 @@ TODO: escenarios medibles (p. ej. *p95 de `POST /predict` < 300 ms con 50 solici
 | ADR | Decisión | Responsable | Estado |
 |---|---|---|---|
 | 001 | Lenguaje, framework y estilo arquitectónico | Camilo | Pendiente |
-| 002 | Selección del modelo | Richardo | Pendiente |
+| 002 | Selección del modelo | Richardo | Aceptada |
 | 003 | Almacenamiento y despliegue | Camilo | Pendiente |
 | 004 | Estrategia de separación de datos | Danielo | Pendiente |
 
