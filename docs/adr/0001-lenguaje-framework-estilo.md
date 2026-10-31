@@ -8,7 +8,7 @@
 Hay que construir un *product concept* de Machine Learning que descargue datos abiertos de Saber 11, entrene y evalúe un clasificador sencillo y exponga sus predicciones a otros sistemas. Estos son los drivers que condicionan la decisión:
 
 - **Restricción del curso:** solo herramientas **open source**. No se usan los servicios de AWS de actividades anteriores.
-- **Tipo de datos:** datos tabulares estructurados (~152.000 filas y ~20 variables categóricas) que vienen de una API REST con respuestas JSON.
+- **Tipo de datos:** datos tabulares estructurados (~76.000 estudiantes únicos y ~20 variables categóricas) que vienen de una API REST con respuestas JSON.
 - **Tiempo:** seis días de trabajo, con tres integrantes en paralelo.
 - **Mantenibilidad:** cada integrante es dueño de una etapa del workflow de ML, y el profesor debe poder ver qué hizo cada uno. El código no puede quedar en un solo archivo.
 - **Rendimiento esperado:** `POST /predict` con p95 < 300 ms en local.
