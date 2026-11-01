@@ -232,7 +232,7 @@ Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectur
 
 ## 6. Modelo
 
-*Responsable: Richard*
+*Responsable: Richardo*
 
 Se eligió **regresión logística** porque es un modelo básico, interpretable y rápido, y obtuvo el mejor F1 y el mejor ROC-AUC en validación. La comparación completa está en el [ADR-002](docs/adr/0002-seleccion-modelo.md).
 
@@ -245,7 +245,7 @@ Se eligió **regresión logística** porque es un modelo básico, interpretable 
 
 ## 7. Calidad y evaluación
 
-*Responsables: Richard (métricas), Daniel (separación de datos), Camilo (criterios de aceptación)*
+*Responsables: Richardo (métricas), Daniel (separación de datos), Camilo (criterios de aceptación)*
 
 - **Estrategia de separación:** 70/15/15 estratificada por el target, con `random_state=42`, sin estudiantes repetidos: 53.377 en train, 11.438 en validación y 11.438 en test, con 24,57 % de clase 1 en cada uno ([ADR-004](docs/adr/0004-separacion-datos.md)).
 - **Modelo de referencia (baseline):** `DummyClassifier(strategy="most_frequent")`, que siempre predice "sin riesgo".
@@ -321,7 +321,7 @@ Cada criterio viene de un escenario de [`drivers-calidad.md`](docs/arquitectura/
 
 ## 8. Análisis ético
 
-*Responsable: Richard*
+*Responsable: Richardo*
 
 El análisis completo está en [`docs/analisis_etico.md`](docs/analisis_etico.md).
 
