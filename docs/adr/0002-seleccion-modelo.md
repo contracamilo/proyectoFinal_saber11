@@ -1,104 +1,60 @@
-# ADR-002: Selección del modelo de clasificación
+# ADR-002: Selección del modelo
 
 - **Estado:** Aceptada
 - **Fecha:** 2026-10-31
-- **Autor(es):** Richardo Caicedo
+- **Autor(es):** Camilo Rivera Quintero
 
 ## Contexto
+Hay que clasificar el riesgo de bajo desempeño (`punt_global` < 234) con un modelo básico de Machine Learning, usando solo variables previas a la prueba. Estos son los drivers que condicionan la decisión:
 
-El proyecto estima si un estudiante pertenece a la clase de riesgo de bajo
-desempeño, definida como un puntaje global por debajo del percentil 25 del
-periodo estudiado. El uso previsto es apoyar la focalización **agregada** de
-programas de refuerzo; el modelo no debe tomar decisiones individuales sobre
-estudiantes.
-
-La clase positiva es `riesgo_bajo_desempeno = 1` y representa aproximadamente
-una cuarta parte de los registros. Por el desbalance, la exactitud global no
-basta para comparar modelos: es importante medir cuántos casos de riesgo se
-detectan y cuántas predicciones positivas son correctas. La selección se hace
-con validación; el conjunto de prueba se conserva para la evaluación final.
+- **Restricción de la actividad:** modelo básico, sin redes neuronales (RS4).
+- **Clases desbalanceadas:** 24,57 % de clase 1. La accuracy por sí sola engaña: el baseline alcanza 75,43 % sin detectar a nadie.
+- **Costo de los errores:** para focalizar apoyos pesa más no dejar por fuera a quien está en riesgo (recall), aunque se generen falsas alarmas.
+- **Transparencia:** el modelo debe poder explicarse en el análisis ético.
+- **Mantenibilidad:** cambiar de modelo no debe tocar la API (QA8).
 
 ## Alternativas consideradas
-
-| Alternativa | Papel y ventajas | Desventajas |
+| Alternativa | Ventajas | Desventajas |
 |---|---|---|
-| `DummyClassifier` | Línea base sencilla; permite comprobar si los modelos aprenden más que una regla trivial. | No aprende relaciones útiles entre las variables; no se propone como modelo de producción. |
-| Regresión Logística | Modelo relativamente interpretable, eficiente y adecuado como primera alternativa para clasificación binaria. `class_weight="balanced"` ayuda a considerar el desbalance. | Sus relaciones son principalmente lineales en el espacio transformado; puede no capturar interacciones complejas. |
-| Árbol de Decisión | Captura reglas e interacciones no lineales y puede explicarse mediante divisiones. Se limita su complejidad con profundidad y tamaño mínimo de hoja. | Puede ser inestable y sobreajustarse; sus reglas pueden volverse difíciles de comunicar si crece demasiado. |
-| K-Nearest Neighbors (KNN) | Método no paramétrico que puede modelar fronteras no lineales. | La predicción puede ser costosa en conjuntos grandes y depende de la escala y de la métrica de distancia; explicar una decisión individual requiere inspeccionar vecinos. |
-| Random Forest | Conjunto de árboles que puede capturar patrones no lineales y reducir la variabilidad de un árbol individual. | Menor interpretabilidad que un árbol individual y mayor costo de cómputo; se descarta para esta primera versión por priorizar explicabilidad y sencillez. |
+| **Regresión logística** con `class_weight="balanced"` | Coeficientes interpretables; rápida; da puntajes que se pueden calibrar; funciona bien con variables one-hot | Solo captura relaciones lineales; menor recall que el árbol en este caso |
+| Árbol de decisión (se probaron `max_depth` 3, 5, 8 y 12, y `min_samples_leaf` 20 y 50) | Reglas fáciles de leer si es poco profundo; captura interacciones | El mejor árbol tiene 321 hojas, por lo que deja de ser legible; más propenso al sobreajuste |
+| KNN | Sin entrenamiento | Predecir exige comparar contra todo train, lo que pone en riesgo el p95 < 300 ms; difícil de explicar |
+| `DummyClassifier` (baseline) | Da el piso de comparación | No detecta casos de riesgo; no es candidato a producción |
 
 ## Criterios / métricas de evaluación
+Selección por **F1 de la clase 1 en validación**. Si la regresión logística queda a menos de 0,01 del mejor F1, se prefiere por su interpretabilidad.
 
-- **F1 de la clase 1 en validación:** métrica principal del proceso de selección,
-  porque resume precision y recall en la clase de riesgo.
-- **Recall de la clase 1 en validación:** se revisa explícitamente porque un
-  falso negativo representa un caso de riesgo que el modelo no detecta y que
-  podría quedar fuera de una estrategia de apoyo.
-- **Interpretabilidad:** se prefiere regresión logística cuando su F1 es
-  comparable al del árbol, para facilitar la explicación de la decisión.
-- **Costo de cómputo:** se consideran el ajuste y la predicción sobre un
-  conjunto de datos de tamaño considerable; se favorecen alternativas
-  relativamente ligeras.
-- **Equidad:** se deben inspeccionar recall y tasa de falsos positivos por
-  grupos sensibles. El desempeño global no basta para justificar el uso del
-  modelo, y excluir variables sensibles no garantiza por sí solo equidad.
+| Modelo (validación) | Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---|---|---|---|---|---|
+| baseline | 0,7543 | 0,0000 | 0,0000 | 0,0000 | 0,5000 |
+| **logreg** | 0,6554 | 0,3900 | 0,7139 | **0,5044** | 0,7486 |
+| tree (`max_depth=12`, `min_samples_leaf=50`) | 0,6276 | 0,3711 | 0,7431 | 0,4950 | 0,7360 |
+
+La validación cruzada de 5 particiones sobre train y validación confirma la selección ([`reports/analisis_modelo.md`](../../reports/analisis_modelo.md)): logreg obtiene F1 de 0,5164 ± 0,0038 y ROC-AUC de 0,7575 ± 0,0034; el árbol, F1 de 0,5055 ± 0,0037 y ROC-AUC de 0,7425 ± 0,0041.
 
 ## Decisión
+Usar **regresión logística** (`LogisticRegression(max_iter=1000, class_weight="balanced")`) dentro de un `Pipeline` de scikit-learn. Tiene el mejor F1 y el mejor ROC-AUC en validación, y es el modelo más fácil de explicar.
 
-Se entrenan `DummyClassifier`, Regresión Logística y Árbol de Decisión. Se
-selecciona el árbol con mayor F1 de clase 1 en validación; si la Regresión
-Logística queda a no más de 0,01 puntos de F1 del mejor árbol, se prefiere la
-Regresión Logística por su mayor facilidad de interpretación. La línea base se
-conserva únicamente como referencia. KNN y Random Forest quedan fuera de esta
-primera comparación.
-
-Los hiperparámetros del árbol se comparan usando validación. El conjunto de
-prueba no interviene en la selección ni en el ajuste.
+La API convierte el puntaje en probabilidad con una **calibración de Platt** ajustada en validación. `riesgo` se sigue decidiendo con el puntaje original y el umbral de 0,5.
 
 ## Consecuencias
-
 - **Positivas:**
-  - Hay una regla de selección explícita y reproducible basada en validación.
-  - La Regresión Logística se favorece cuando su desempeño es prácticamente
-    equivalente al del mejor árbol.
-  - La línea base permite contextualizar si los modelos candidatos aportan
-    valor frente a una predicción trivial.
-  - La auditoría por grupos y la comparación con un modelo sin variables
-    sensibles aportan evidencia adicional para la discusión ética.
+  - Cada coeficiente muestra cómo se asocia una categoría con el riesgo, lo que apoya el análisis ético.
+  - Predecir toma milisegundos: el p95 medido es de 43,95 ms.
+  - La API no cambia si se reemplaza el modelo, porque consume el `Pipeline` serializado.
 - **Negativas / riesgos / deuda técnica:**
-  - La selección por F1 no representa por sí sola el costo social de cada tipo
-    de error ni las restricciones reales de capacidad para ofrecer apoyos.
-  - El margen de 0,01 es una regla práctica del proyecto, no una prueba de
-    equivalencia estadística.
-  - La interpretabilidad de la Regresión Logística no implica causalidad ni
-    ausencia de sesgo; variables no sensibles también pueden actuar como
-    aproximaciones indirectas.
-  - La decisión se limita al periodo y población evaluados y debe revisarse
-    ante cambios de datos o de propósito.
+  - `class_weight="balanced"` aumenta el recall a costa de la precision y la accuracy: en test, la accuracy (0,6604) queda por debajo del baseline (0,7543).
+  - El mismo peso infla el puntaje: promedia 0,4499 frente a una tasa real de 0,2457. Por eso la API no lo expone como probabilidad. Tras calibrar, el Brier en test baja de 0,2035 a 0,1574.
+  - La precision es baja (0,3959): cerca de 6 de cada 10 alertas son falsas. No sirve para decisiones individuales.
+  - El modelo presenta brechas de recall por grupo mayores a 0,10 ([`reports/equidad.md`](../../reports/equidad.md)).
 
 ## Trade-offs
-
-Se acepta que el árbol pueda obtener un F1 ligeramente mayor para favorecer la
-explicabilidad de la Regresión Logística cuando la diferencia es de hasta
-0,01. Si la ventaja del árbol supera ese margen, se prioriza el F1 medido en
-validación, sujeto a la revisión de recall, equidad y limitaciones de uso.
-Ninguna de las dos métricas globales sustituye el análisis de errores y de
-consecuencias para los grupos.
+- Se acepta **menor accuracy** a cambio de **detectar más casos de riesgo**, que es el objetivo del sistema.
+- Se acepta **menor recall que el árbol** (0,7139 frente a 0,7431) a cambio de **mejor F1 y más interpretabilidad**.
+- Se acepta **gastar el conjunto de validación también en calibrar** a cambio de no reservar otro conjunto. El efecto es mínimo porque la calibración solo ajusta dos parámetros.
 
 ## Validación
-
-La implementación de `saber11.models.train` compara los candidatos con una
-partición estratificada y selecciona usando validación. La evaluación final y
-la matriz de confusión se generan por separado sobre test; la auditoría
-`saber11.models.fairness` calcula métricas por grupo y compara el modelo
-seleccionado con otro reentrenado sin variables sensibles.
-
-**Resultados empíricos pendientes de incorporar:** en el workspace disponible
-al redactar este ADR no están generados `reports/metrics.json` ni
-`reports/equidad.csv`. Por ello no se consignan valores ni se afirma cuál
-modelo ganó empíricamente. Tras ejecutar entrenamiento, evaluación y auditoría
-con los datos reales, actualizar esta sección con el nombre seleccionado, las
-métricas de validación y test, el F1 de test del modelo sin variables
-sensibles y las brechas de recall por variable para ambos modelos. No usar
-valores de test para volver a seleccionar hiperparámetros o modelos.
+- `python -m saber11.models.train` regenera el modelo y sus métricas de validación.
+- `python -m saber11.models.evaluate` confirma el resultado en test: F1 de 0,5126 y ROC-AUC de 0,7539, frente a F1 de 0 y ROC-AUC de 0,5 del baseline.
+- `python -m saber11.models.analisis` repite la comparación con validación cruzada.
+- Dos ejecuciones seguidas producen un `reports/metrics.json` idéntico (QA5).

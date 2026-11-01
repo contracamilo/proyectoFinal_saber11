@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import numpy as np
 import pandas as pd
+import sklearn
 from sklearn.base import BaseEstimator
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
@@ -20,6 +22,7 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeClassifier
 
+from saber11.calibracion import Calibracion, logit
 from saber11.config import load_config
 from saber11.data.repository import read_raw
 from saber11.features.preprocessing import (
@@ -44,7 +47,7 @@ def _crear_pipeline(clasificador: BaseEstimator) -> Pipeline:
     )
 
 
-def _calcular_metricas(modelo: Pipeline, datos: pd.DataFrame) -> Metricas:
+def calcular_metricas(modelo: Pipeline, datos: pd.DataFrame) -> Metricas:
     """Calcula métricas binarias usando la clase 1 como clase positiva."""
     y_real = datos[TARGET]
     y_predicho = modelo.predict(datos[FEATURES])
@@ -59,24 +62,37 @@ def _calcular_metricas(modelo: Pipeline, datos: pd.DataFrame) -> Metricas:
     }
 
 
-def _entrenar_candidatos(
+def ajustar_calibracion(modelo: Pipeline, validacion: pd.DataFrame) -> Calibracion:
+    """Ajusta la calibración en validación: class_weight infla los puntajes."""
+    puntajes = modelo.predict_proba(validacion[FEATURES])[:, 1]
+    regresion = LogisticRegression(C=1e6).fit(
+        np.reshape(logit(puntajes), (-1, 1)),
+        validacion[TARGET],
+    )
+    return {
+        "pendiente": float(regresion.coef_[0, 0]),
+        "intercepto": float(regresion.intercept_[0]),
+    }
+
+
+def _entrenar_modelos(
     entrenamiento: pd.DataFrame,
     validacion: pd.DataFrame,
     random_state: int,
-) -> tuple[dict[str, Pipeline], dict[str, Metricas]]:
-    """Entrena los candidatos y escoge el árbol usando solo validación."""
+) -> tuple[dict[str, Metricas], str, dict[str, Pipeline]]:
+    """Entrena los candidatos, ajusta árboles con validación y selecciona el final."""
     x_train = entrenamiento[FEATURES]
     y_train = entrenamiento[TARGET]
 
     baseline = _crear_pipeline(DummyClassifier(strategy="most_frequent"))
     baseline.fit(x_train, y_train)
-    modelos = {"baseline": baseline}
+    metricas = {"baseline": calcular_metricas(baseline, validacion)}
 
     logreg = _crear_pipeline(
         LogisticRegression(max_iter=1000, class_weight="balanced")
     )
     logreg.fit(x_train, y_train)
-    modelos["logreg"] = logreg
+    metricas["logreg"] = calcular_metricas(logreg, validacion)
 
     mejor_arbol: Pipeline | None = None
     mejores_metricas_arbol: Metricas | None = None
@@ -91,7 +107,7 @@ def _entrenar_candidatos(
                 )
             )
             arbol.fit(x_train, y_train)
-            metricas_arbol = _calcular_metricas(arbol, validacion)
+            metricas_arbol = calcular_metricas(arbol, validacion)
             if (
                 mejores_metricas_arbol is None
                 or metricas_arbol["f1"] > mejores_metricas_arbol["f1"]
@@ -102,35 +118,12 @@ def _entrenar_candidatos(
     if mejor_arbol is None or mejores_metricas_arbol is None:
         raise RuntimeError("No fue posible entrenar los candidatos de árbol.")
 
-    modelos["tree"] = mejor_arbol
-    metricas = {
-        nombre: _calcular_metricas(modelo, validacion)
-        for nombre, modelo in modelos.items()
-    }
-    return modelos, metricas
-
-
-def _seleccionar_modelo(metricas: dict[str, Metricas]) -> str:
-    """Prefiere regresión logística cuando queda a 0,01 del mejor F1."""
+    metricas["tree"] = mejores_metricas_arbol
+    candidatos = {"baseline": baseline, "logreg": logreg, "tree": mejor_arbol}
     mejor_f1 = max(metricas["logreg"]["f1"], metricas["tree"]["f1"])
     if metricas["logreg"]["f1"] >= mejor_f1 - 0.01:
-        return "logreg"
-    return "tree"
-
-
-def _entrenar_modelos(
-    entrenamiento: pd.DataFrame,
-    validacion: pd.DataFrame,
-    random_state: int,
-) -> tuple[dict[str, Metricas], str, Pipeline]:
-    """Entrena los candidatos y selecciona el mejor según F1 en validación."""
-    modelos, metricas = _entrenar_candidatos(
-        entrenamiento,
-        validacion,
-        random_state,
-    )
-    nombre_modelo = _seleccionar_modelo(metricas)
-    return metricas, nombre_modelo, modelos[nombre_modelo]
+        return metricas, "logreg", candidatos
+    return metricas, "tree", candidatos
 
 
 def _guardar_resultados(
@@ -138,19 +131,24 @@ def _guardar_resultados(
     umbral: float,
     metricas: dict[str, Metricas],
     nombre_modelo: str,
-    modelo: Pipeline,
+    candidatos: dict[str, Pipeline],
+    calibracion: Calibracion,
 ) -> None:
-    """Guarda el pipeline seleccionado y sus metadatos."""
+    """Guarda los candidatos, el pipeline seleccionado y sus metadatos."""
     ruta_modelo = Path(cfg["model"]["artifact_path"])
     ruta_modelo.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(modelo, ruta_modelo)
+    joblib.dump(candidatos[nombre_modelo], ruta_modelo)
+    for nombre, candidato in candidatos.items():
+        joblib.dump(candidato, ruta_modelo.parent / f"{nombre}.joblib")
 
     metadatos = {
         "model_name": nombre_modelo,
         "threshold_punt_global": float(umbral),
         "features": list(FEATURES),
         "trained_at": datetime.now(timezone.utc).isoformat(),
+        "sklearn_version": sklearn.__version__,
         "metrics_val": metricas[nombre_modelo],
+        "calibracion": calibracion,
     }
     ruta_metadatos = ruta_modelo.parent / "model_meta.json"
     ruta_metadatos.write_text(
@@ -166,12 +164,13 @@ def entrenar() -> None:
     df, umbral = build_target(df, cfg["target"]["threshold_percentile"])
     entrenamiento, validacion, _ = split(df, cfg)
 
-    metricas, nombre_modelo, modelo = _entrenar_modelos(
+    metricas, nombre_modelo, candidatos = _entrenar_modelos(
         entrenamiento,
         validacion,
         cfg["split"]["random_state"],
     )
-    _guardar_resultados(cfg, umbral, metricas, nombre_modelo, modelo)
+    calibracion = ajustar_calibracion(candidatos[nombre_modelo], validacion)
+    _guardar_resultados(cfg, umbral, metricas, nombre_modelo, candidatos, calibracion)
 
     print("Métricas en validación (clase positiva: riesgo = 1)")
     encabezado = (

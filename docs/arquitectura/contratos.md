@@ -14,12 +14,12 @@ flowchart LR
     SVC -->|HTTP/JSON| U((Usuario))
 ```
 
-## Configuración — `saber11/config.py` (Danielo)
+## Configuración — `saber11/config.py` (Daniel)
 ```python
 load_config(path: str = "config/config.yaml") -> dict
 ```
 
-## Capa de datos — `saber11/data/` (Danielo)
+## Capa de datos — `saber11/data/` (Daniel)
 ```python
 # ingest.py
 download(cfg: dict, force: bool = False) -> pathlib.Path
@@ -34,27 +34,28 @@ read_raw(cfg: dict) -> pd.DataFrame   # Lee la tabla "resultados".
 #   CLI: python -m saber11.data.repository
 ```
 
-## Capa de procesamiento — `saber11/features/preprocessing.py` (Danielo)
+## Capa de procesamiento — `saber11/features/preprocessing.py` (Daniel)
 ```python
 TARGET: str = "riesgo_bajo_desempeno"
 FEATURES: list[str]       # Solo variables previas a la prueba (cole_*, fami_*, estu_genero, edad).
 SENSITIVE: list[str] = ["estu_genero", "fami_estratovivienda", "cole_naturaleza", "cole_area_ubicacion"]
 LEAKAGE_PREFIXES: tuple = ("punt_", "desemp_", "percentil_")   # Nunca son entrada del modelo.
 
-clean(df: pd.DataFrame) -> pd.DataFrame
+clean(df: pd.DataFrame) -> pd.DataFrame   # Deja una fila por estu_consecutivo: la fuente trae copias idénticas.
 build_target(df: pd.DataFrame, percentile: int) -> tuple[pd.DataFrame, float]   # (df con TARGET, umbral de punt_global)
 split(df: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]   # train, val, test estratificados
 build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTransformer
 ```
 
-## Capa de modelo — `saber11/models/` (Richardo)
+## Capa de modelo — `saber11/models/` (Richard)
 ```python
 # train.py — CLI: python -m saber11.models.train
 #   Entrena baseline (DummyClassifier), LogisticRegression y DecisionTreeClassifier.
 #   Selecciona por F1 de la clase 1 en validación.
 #   Guarda:
 #     models/model.joblib     -> sklearn Pipeline([("prep", ColumnTransformer), ("clf", estimador)])
-#     models/model_meta.json  -> {"model_name", "threshold_punt_global", "features", "trained_at", "metrics_val"}
+#     models/<nombre>.joblib  -> Los tres candidatos (baseline, logreg, tree), para compararlos en test.
+#     models/model_meta.json  -> {"model_name", "threshold_punt_global", "features", "trained_at", "sklearn_version", "metrics_val"}
 
 # evaluate.py — CLI: python -m saber11.models.evaluate
 #   Evalúa en test el modelo seleccionado y el baseline.
@@ -62,6 +63,7 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 
 # fairness.py — CLI: python -m saber11.models.fairness
 #   Métricas por cada grupo de SENSITIVE -> reports/equidad.md y reports/equidad.csv
+#   Compara el modelo con uno entrenado sin las variables de SENSITIVE.
 ```
 
 `reports/metrics.json`:
@@ -77,11 +79,11 @@ build_preprocessor(features: list[str] = FEATURES) -> sklearn.compose.ColumnTran
 }
 ```
 
-## Capa de servicio — `saber11/api/main.py` (Camilo)
-Carga `models/model.joblib` una sola vez al iniciar y expone:
+## Capa de servicio — `saber11/api/` (Camilo)
+`main.py` (rutas), `schemas.py` (Pydantic) y `model_service.py` (carga y predicción). Carga `models/model.joblib` una sola vez al iniciar y expone:
 
 | Método | Ruta | Entrada | Salida |
 |---|---|---|---|
 | GET | `/health` | — | `{"status": "ok", "model": "<model_name>"}` |
-| POST | `/predict` | JSON con las columnas de `FEATURES` | `{"riesgo": 0/1, "probabilidad": float}` |
+| POST | `/predict` | JSON con las columnas de `FEATURES` | `{"riesgo": 0/1, "probabilidad": float}`. `probabilidad` está calibrada con los parámetros de `model_meta.json` |
 | GET | `/metrics` | — | Contenido de `reports/metrics.json` |

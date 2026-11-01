@@ -9,8 +9,8 @@ El profesor evalúa **solo la rama `develop`** y verifica el aporte de cada inte
 | `main` | Rama inicial; no se trabaja aquí. |
 | `develop` | Consolidación del proyecto. **Rama que revisa el profesor.** Solo recibe merges de PRs. |
 | `dev_crivera52` | Camilo Rivera |
-| `dev_dcharry55` | Danielo Charry |
-| `dev_rcaicedo05` | Richardo Caicedo |
+| `dev_dcharry55` | Daniel Charry |
+| `dev_rcaicedo05` | Richard Caicedo |
 
 ## Configuración inicial (una sola vez)
 
@@ -20,7 +20,8 @@ cd proyectoFinal_saber11
 git config user.name "Tu Nombre"
 git config user.email "correo-asociado-a-tu-github@..."   # si no coincide, GitHub no te atribuye los commits
 git switch dev_<tuUsuario>
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate    # Windows (PowerShell): .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 pip install -e .            # permite "import saber11" desde notebooks, scripts y tests
 ```

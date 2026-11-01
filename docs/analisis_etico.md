@@ -8,17 +8,26 @@ El resultado podría orientar análisis institucionales y la distribución de re
 
 ## 2. Sesgos y limitaciones de los datos
 
-El conjunto analizado se limita a estudiantes y colegios de Bogotá y a un único periodo ([CIFRA: periodo y número de registros utilizados]). Por ello, sus patrones no necesariamente representan a otras ciudades, zonas rurales, cohortes o años. Cambios en el examen, en las condiciones sociales o en la población pueden reducir la validez de las predicciones. Antes de aplicar el modelo en otro lugar o periodo, sería necesario evaluarlo de nuevo con datos pertinentes.
+El conjunto analizado se limita a estudiantes y colegios de Bogotá y a un único periodo (periodo 20224, con 76.253 estudiantes únicos después de quitar las 76.331 filas duplicadas de la fuente). Por ello, sus patrones no necesariamente representan a otras ciudades, zonas rurales, cohortes o años. Cambios en el examen, en las condiciones sociales o en la población pueden reducir la validez de las predicciones. Antes de aplicar el modelo en otro lugar o periodo, sería necesario evaluarlo de nuevo con datos pertinentes.
 
 Variables como estrato de vivienda, naturaleza del colegio y bienes del hogar pueden reflejar diferencias en el acceso a recursos educativos. También pueden actuar como aproximaciones indirectas de condiciones socioeconómicas. El modelo podría propagar desigualdades históricas presentes en los datos.
 
-La selección de registros, los datos faltantes, la forma de definir el percentil y la representación desigual de algunos grupos también pueden afectar los resultados. Se debe documentar cuántos registros y observaciones de cada grupo se usaron ([CIFRA: distribución por grupo]) y evitar generalizar conclusiones más allá de la población estudiada.
+La selección de registros, los datos faltantes, la forma de definir el percentil y la representación desigual de algunos grupos también pueden afectar los resultados. En el conjunto analizado hay 39.883 mujeres y 36.370 hombres; 43.909 estudiantes de colegios oficiales y 32.344 de no oficiales; y 75.590 en zona urbana frente a solo 663 en zona rural. Por estrato, los grupos más grandes son el 2 (31.453) y el 3 (26.286), mientras que el 5 (1.163), el 6 (417) y "Sin Estrato" (556) son pequeños, y 3.254 estudiantes no reportan el dato. Por eso no se deben generalizar las conclusiones más allá de la población estudiada.
 
 ## 3. Equidad y evaluación por grupos
 
 En este contexto, una posible señal de trato desigual sería que el modelo detectara con menor frecuencia a estudiantes que realmente están en riesgo en algunos grupos, o que marcara como riesgo a estudiantes que no lo están con mayor frecuencia en otros. Esto podría producir diferencias en quién recibe atención si las predicciones se usaran para focalizar apoyos.
 
-Para explorar estas diferencias, se calcularán en el conjunto de prueba, por grupos de género, estrato, naturaleza del colegio y área de ubicación, el tamaño del grupo, la proporción real y predicha de casos de riesgo, el recall, la precision y la tasa de falsos positivos. También se reportará la mayor brecha de recall observada para cada variable ([CIFRA: brechas de recall y métricas por grupo]). Siguiendo el escenario QA7 de `docs/arquitectura/drivers-calidad.md`, toda brecha de recall mayor a 0,10 entre grupos se marcará como hallazgo y se discutirá.
+Para explorar estas diferencias se calcularon en el conjunto de prueba, por grupos de género, estrato, naturaleza del colegio y área de ubicación, el tamaño del grupo, la proporción real y predicha de casos de riesgo, el recall, la precision y la tasa de falsos positivos ([`reports/equidad.md`](../reports/equidad.md)). Siguiendo el escenario QA7 de `docs/arquitectura/drivers-calidad.md`, toda brecha de recall mayor a 0,10 entre grupos con al menos 30 personas se marca como hallazgo. **Las cuatro variables superan ese criterio:**
+
+| Variable | Grupo con mayor recall | Grupo con menor recall | Brecha |
+|---|---|---|---|
+| Estrato | Sin Estrato: 0,9565 | Estrato 4: 0,5424 | 0,4141 |
+| Naturaleza del colegio | Oficial: 0,7902 | No oficial: 0,5509 | 0,2393 |
+| Área de ubicación | Rural: 0,8636 | Urbano: 0,7256 | 0,1380 |
+| Género | Femenino: 0,7832 | Masculino: 0,6473 | 0,1359 |
+
+El patrón va más allá del recall: el modelo marca mucho más a los grupos de menor nivel socioeconómico. En estrato 1 señala al 77,07 % de los estudiantes, cuando el riesgo real es de 35,50 %, y su tasa de falsos positivos es de 71,09 %. En colegios oficiales esa tasa es de 58,83 %, frente a 10,53 % en los no oficiales. Es decir, en esos grupos se detecta más riesgo, pero a cambio se etiqueta como "en riesgo" a muchos estudiantes que no lo están. En los grupos con menor recall ocurre lo contrario: casi la mitad de los estudiantes de colegios no oficiales que están en riesgo no se detecta.
 
 Estas métricas son herramientas de diagnóstico. Una diferencia puede estar relacionada con el tamaño reducido de un grupo, la calidad de sus datos o desigualdades estructurales. Se interpretarán las cifras junto con los tamaños de muestra y el contexto, y no se asumirá que una brecha pequeña basta para autorizar un uso individual del modelo.
 
@@ -40,9 +49,20 @@ El beneficio esperado es ayudar a planear apoyos académicos y distribuir recurs
 
 La regresión logística se considera como una alternativa relativamente interpretable: permite examinar cómo se asocian las variables con la probabilidad estimada, manteniendo constantes las demás variables del modelo. La interpretación debe acompañarse de las métricas de evaluación y de las limitaciones de los datos.
 
-El género y el estrato son variables sensibles o relacionadas con características sensibles. Su inclusión puede ayudar a evaluar desempeño y diferencias entre grupos, pero también puede reproducir patrones de desigualdad. El proyecto medirá el modelo completo y, como análisis complementario, comparará su desempeño y sus brechas con un modelo que no use las variables sensibles ([CIFRA: F1 y brechas de ambos modelos]). Excluirlas no garantiza por sí solo equidad, porque otras variables pueden funcionar como proxies.
+La transparencia también exige que la probabilidad informada signifique lo que dice. Sin calibrar, el puntaje del modelo casi duplicaba el riesgo real (0,4499 frente a 0,2457), lo que podía exagerar la gravedad de un perfil. La API ahora informa una probabilidad calibrada, y una alerta significa riesgo igual o mayor que el promedio, no certeza.
 
-La decisión final sobre incluir estas variables requiere justificar el propósito, revisar los resultados por grupo y valorar las consecuencias de los errores. En ningún caso el modelo debe utilizarse para tomar decisiones individuales automatizadas. La documentación de variables, definición del objetivo, métricas y limitaciones busca hacer el análisis comprensible y revisable por el equipo y las personas responsables.
+La importancia por permutación muestra que el modelo depende sobre todo de la jornada del colegio, la edad y la educación de los padres ([`reports/analisis_modelo.md`](../reports/analisis_modelo.md)). Estas variables describen el contexto del estudiante, no su capacidad. Además, una importancia baja no descarta un sesgo: el estrato puntúa poco, pero parte de su información puede estar en otras variables.
+
+El género y el estrato son variables sensibles o relacionadas con características sensibles. Su inclusión puede ayudar a evaluar desempeño y diferencias entre grupos, pero también puede reproducir patrones de desigualdad. Como análisis complementario, se comparó el modelo completo con uno entrenado sin las cuatro variables sensibles:
+
+| Modelo | F1 (test) | Brecha género | Brecha estrato | Brecha naturaleza | Brecha área |
+|---|---|---|---|---|---|
+| Completo | 0,5126 | 0,1359 | 0,4141 | 0,2393 | 0,1380 |
+| Sin variables sensibles | 0,5129 | 0,0158 | 0,4433 | 0,2487 | 0,0421 |
+
+Quitar esas variables casi no cambia el F1. Reduce las brechas de género y de área, pero las de estrato y naturaleza incluso aumentan un poco. Esto confirma que excluirlas no garantiza por sí solo equidad: otras variables, como la educación de los padres o los bienes del hogar, funcionan como proxies del nivel socioeconómico.
+
+Como el modelo sin esas variables tiene el mismo desempeño y menores brechas de género y área, es una alternativa que debería preferirse si el sistema llegara a usarse; este *product concept* conserva el modelo completo para poder documentar la comparación. La decisión final requiere justificar el propósito, revisar los resultados por grupo y valorar las consecuencias de los errores. En ningún caso el modelo debe utilizarse para tomar decisiones individuales automatizadas. La documentación de variables, definición del objetivo, métricas y limitaciones busca hacer el análisis comprensible y revisable por el equipo y las personas responsables.
 
 ## 7. Recomendaciones de uso responsable
 
@@ -54,6 +74,6 @@ La decisión final sobre incluir estas variables requiere justificar el propósi
 6. Combinar los resultados con conocimiento local y revisión humana; ofrecer apoyos de forma inclusiva y evitar que una predicción negativa limite oportunidades.
 7. Documentar las decisiones, responsables, limitaciones y resultados de cada evaluación, y suspender el uso si aparecen daños o disparidades que no puedan justificarse y mitigarse.
 
-## Resultados pendientes de completar
+## Origen de las cifras
 
-Este documento es un borrador previo a la evaluación final. Los marcadores `[CIFRA]` deben sustituirse únicamente por resultados reproducibles obtenidos en validación o en el conjunto de prueba, indicando claramente a cuál conjunto corresponden. Si una métrica no se calculó, debe indicarse como no disponible en lugar de estimarla o inventarla.
+Todas las cifras de grupos y métricas salen del conjunto de prueba (11.438 estudiantes) y se reproducen con `python -m saber11.models.fairness`. Los tamaños por grupo de la sección 2 corresponden a los 76.253 estudiantes únicos.

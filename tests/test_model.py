@@ -1,122 +1,110 @@
-"""Pruebas offline del pipeline de clasificación y sus métricas."""
-
-import json
-from pathlib import Path
-
+"""Pruebas de la capa de modelo con datos fabricados."""
 import numpy as np
 import pandas as pd
-import pytest
-from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 
-from saber11.models.fairness import calcular_metricas_por_grupo
-
-TARGET = "riesgo_bajo_desempeno"
-CLAVES_METRICAS = {
-    "accuracy",
-    "precision",
-    "recall",
-    "f1",
-    "roc_auc",
-}
+from saber11.calibracion import calibrar
+from saber11.features.preprocessing import FEATURES, TARGET, build_preprocessor
+from saber11.models.analisis import PARTICIONES, importancia_variables, validar_cruzado
+from saber11.models.evaluate import evaluar_calibracion
+from saber11.models.fairness import MINIMO_POR_GRUPO, SIN_DATO, brecha_recall, metricas_por_grupo
+from saber11.models.train import ajustar_calibracion, calcular_metricas
 
 
-@pytest.fixture
-def datos_sinteticos() -> pd.DataFrame:
-    """Crea una muestra balanceada con una señal numérica separable."""
-    objetivo = np.tile([0, 1], 60)
-    ruido = np.linspace(-0.2, 0.2, len(objetivo))
-    return pd.DataFrame(
+def datos(n: int = 300) -> pd.DataFrame:
+    """Crea datos donde el riesgo depende de una variable de entrada."""
+    generador = np.random.default_rng(42)
+    df = pd.DataFrame({c: generador.choice(["A", "B"], n) for c in FEATURES if c != "edad"})
+    df["edad"] = generador.integers(15, 20, n).astype(float)
+    df[TARGET] = (df["cole_jornada"] == "A").astype(int)
+    return df
+
+
+def modelo_entrenado(df: pd.DataFrame) -> Pipeline:
+    """Entrena una regresión logística con los datos fabricados."""
+    return Pipeline(
+        [("prep", build_preprocessor()), ("clf", LogisticRegression(max_iter=1000))]
+    ).fit(df[FEATURES], df[TARGET])
+
+
+def datos_con_ruido(n: int = 2000) -> pd.DataFrame:
+    """Crea datos con clase minoritaria y una etiqueta que no es determinista."""
+    df = datos(n)
+    generador = np.random.default_rng(7)
+    probabilidad = np.where(df["cole_jornada"] == "A", 0.4, 0.1)
+    df[TARGET] = (generador.random(n) < probabilidad).astype(int)
+    return df
+
+
+def test_calcular_metricas_devuelve_las_cinco_metricas():
+    df = datos()
+    modelo = modelo_entrenado(df)
+    metricas = calcular_metricas(modelo, df)
+    assert set(metricas) == {"accuracy", "precision", "recall", "f1", "roc_auc"}
+    assert metricas["f1"] == 1.0
+
+
+def test_calibracion_corrige_puntajes_inflados():
+    df = datos_con_ruido()
+    modelo = Pipeline(
+        [
+            ("prep", build_preprocessor()),
+            ("clf", LogisticRegression(max_iter=1000, class_weight="balanced")),
+        ]
+    ).fit(df[FEATURES], df[TARGET])
+    resultado = evaluar_calibracion(
+        modelo,
+        ajustar_calibracion(modelo, df),
+        df,
+        float(df[TARGET].mean()),
+    )
+    assert resultado["media_puntaje"] > resultado["tasa_real"] + 0.1
+    assert abs(resultado["media_probabilidad"] - resultado["tasa_real"]) < 0.01
+    assert resultado["brier_probabilidad"] < resultado["brier_puntaje"]
+
+
+def test_calibrar_conserva_el_orden_de_los_puntajes():
+    puntajes = np.array([0.1, 0.5, 0.9])
+    calibradas = calibrar(puntajes, {"pendiente": 0.8, "intercepto": -1.2})
+    assert np.all(np.diff(calibradas) > 0)
+
+
+def test_validacion_cruzada_resume_f1_y_roc_auc():
+    df = datos_con_ruido(500)
+    resumen = validar_cruzado(modelo_entrenado(df), df, semilla=42)
+    assert PARTICIONES == 5
+    assert set(resumen) == {"f1_media", "f1_desviacion", "roc_auc_media", "roc_auc_desviacion"}
+    assert 0 < resumen["roc_auc_media"] <= 1
+
+
+def test_importancia_ubica_primero_la_variable_que_define_el_riesgo():
+    df = datos()
+    tabla = importancia_variables(modelo_entrenado(df), df, semilla=42)
+    assert len(tabla) == len(FEATURES)
+    assert tabla.loc[0, "variable"] == "cole_jornada"
+
+
+def test_metricas_por_grupo_calcula_recall_y_falsos_positivos():
+    y_real = pd.Series([1, 1, 0, 0, 1, 0])
+    y_predicho = np.array([1, 0, 1, 0, 1, 0])
+    grupos = pd.Series(["A", "A", "A", "A", "B", "B"])
+    tabla = metricas_por_grupo(y_real, y_predicho, grupos).set_index("grupo")
+    assert tabla.loc["A", "recall"] == 0.5
+    assert tabla.loc["A", "tasa_falsos_positivos"] == 0.5
+    assert tabla.loc["B", "recall"] == 1.0
+
+
+def test_metricas_por_grupo_conserva_los_valores_faltantes():
+    tabla = metricas_por_grupo(pd.Series([1, 0]), np.array([1, 0]), pd.Series(["A", None]))
+    assert SIN_DATO in set(tabla["grupo"])
+
+
+def test_brecha_ignora_grupos_pequenos():
+    tabla = pd.DataFrame(
         {
-            "indicador_contexto": objetivo * 2 - 1 + ruido,
-            "grupo": np.where(np.arange(len(objetivo)) % 3, "A", "B"),
-            TARGET: objetivo,
+            "n": [MINIMO_POR_GRUPO, MINIMO_POR_GRUPO, MINIMO_POR_GRUPO - 1],
+            "recall": [0.7, 0.6, 0.0],
         }
     )
-
-
-def _crear_pipeline(clasificador: object) -> Pipeline:
-    """Construye el pipeline numérico mínimo usado por esta prueba sintética."""
-    return Pipeline(
-        [
-            ("prep", StandardScaler()),
-            ("clf", clasificador),
-        ]
-    )
-
-
-def test_pipeline_predice_clases_binarias_y_probabilidades_validas(
-    datos_sinteticos: pd.DataFrame,
-) -> None:
-    """El pipeline ajustado predice clases binarias y probabilidades válidas."""
-    entradas = datos_sinteticos[["indicador_contexto"]]
-    etiquetas = datos_sinteticos[TARGET]
-    modelo = _crear_pipeline(LogisticRegression(random_state=42))
-    modelo.fit(entradas, etiquetas)
-
-    predicciones = modelo.predict(entradas)
-    probabilidades = modelo.predict_proba(entradas)
-
-    assert set(np.unique(predicciones)).issubset({0, 1})
-    assert probabilidades.shape == (len(datos_sinteticos), 2)
-    assert np.all((probabilidades >= 0) & (probabilidades <= 1))
-    assert np.allclose(probabilidades.sum(axis=1), 1)
-
-
-def test_modelo_seleccionado_supera_baseline_en_f1(
-    datos_sinteticos: pd.DataFrame,
-) -> None:
-    """La logística detecta la señal y supera al baseline mayoritario."""
-    entradas = datos_sinteticos[["indicador_contexto"]]
-    etiquetas = datos_sinteticos[TARGET]
-
-    seleccionado = _crear_pipeline(LogisticRegression(random_state=42))
-    baseline = _crear_pipeline(DummyClassifier(strategy="most_frequent"))
-    seleccionado.fit(entradas, etiquetas)
-    baseline.fit(entradas, etiquetas)
-
-    f1_seleccionado = f1_score(etiquetas, seleccionado.predict(entradas))
-    f1_baseline = f1_score(etiquetas, baseline.predict(entradas))
-
-    assert f1_seleccionado > f1_baseline
-
-
-def test_metrics_json_cumple_contrato_si_existe() -> None:
-    """Si el reporte está generado, verifica sus claves y métricas requeridas."""
-    ruta = Path("reports/metrics.json")
-    if not ruta.is_file():
-        pytest.skip("reports/metrics.json aún no se ha generado.")
-
-    reporte = json.loads(ruta.read_text(encoding="utf-8"))
-    assert {"selected_model", "test", "confusion_matrix"} <= reporte.keys()
-    assert {"baseline", "logreg", "tree"} <= reporte["test"].keys()
-    for metricas in reporte["test"].values():
-        assert CLAVES_METRICAS <= metricas.keys()
-
-    matriz = reporte["confusion_matrix"]
-    assert len(matriz) == 2
-    assert all(len(fila) == 2 for fila in matriz)
-
-
-def test_metricas_de_equidad_devueltas_por_grupo(
-    datos_sinteticos: pd.DataFrame,
-) -> None:
-    """La auditoría devuelve una fila para cada grupo presente."""
-    entradas = datos_sinteticos[["indicador_contexto"]]
-    etiquetas = datos_sinteticos[TARGET]
-    modelo = _crear_pipeline(LogisticRegression(random_state=42))
-    modelo.fit(entradas, etiquetas)
-    predicciones = modelo.predict(entradas)
-
-    metricas = calcular_metricas_por_grupo(
-        etiquetas,
-        predicciones,
-        datos_sinteticos["grupo"],
-        "grupo",
-    )
-
-    assert len(metricas) == datos_sinteticos["grupo"].nunique()
-    assert set(metricas["grupo"]) == set(datos_sinteticos["grupo"])
+    assert round(brecha_recall(tabla), 4) == 0.1
