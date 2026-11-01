@@ -29,6 +29,13 @@ Para explorar estas diferencias se calcularon en el conjunto de prueba, por grup
 
 El patrón va más allá del recall: el modelo marca mucho más a los grupos de menor nivel socioeconómico. En estrato 1 señala al 77,07 % de los estudiantes, cuando el riesgo real es de 35,50 %, y su tasa de falsos positivos es de 71,09 %. En colegios oficiales esa tasa es de 58,83 %, frente a 10,53 % en los no oficiales. Es decir, en esos grupos se detecta más riesgo, pero a cambio se etiqueta como "en riesgo" a muchos estudiantes que no lo están. En los grupos con menor recall ocurre lo contrario: casi la mitad de los estudiantes de colegios no oficiales que están en riesgo no se detecta.
 
+En el resultado global de test, la regresión logística obtuvo F1 de 0,5126,
+recall de 0,7267 y precision de 0,3959; el baseline tuvo F1 y recall de 0.
+La matriz de confusión registró 3.116 falsos positivos y 768 falsos negativos.
+En el uso propuesto, los falsos negativos son casos de riesgo que podrían no
+recibir apoyo; los falsos positivos pueden desviar recursos y estigmatizar.
+La prioridad dada al recall no hace inocuo el alto número de falsos positivos.
+
 Estas métricas son herramientas de diagnóstico. Una diferencia puede estar relacionada con el tamaño reducido de un grupo, la calidad de sus datos o desigualdades estructurales. Se interpretarán las cifras junto con los tamaños de muestra y el contexto, y no se asumirá que una brecha pequeña basta para autorizar un uso individual del modelo.
 
 ## 4. Privacidad y manejo de la información
@@ -62,7 +69,7 @@ El género y el estrato son variables sensibles o relacionadas con característi
 
 Quitar esas variables casi no cambia el F1. Reduce las brechas de género y de área, pero las de estrato y naturaleza incluso aumentan un poco. Esto confirma que excluirlas no garantiza por sí solo equidad: otras variables, como la educación de los padres o los bienes del hogar, funcionan como proxies del nivel socioeconómico.
 
-Como el modelo sin esas variables tiene el mismo desempeño y menores brechas de género y área, es una alternativa que debería preferirse si el sistema llegara a usarse; este *product concept* conserva el modelo completo para poder documentar la comparación. La decisión final requiere justificar el propósito, revisar los resultados por grupo y valorar las consecuencias de los errores. En ningún caso el modelo debe utilizarse para tomar decisiones individuales automatizadas. La documentación de variables, definición del objetivo, métricas y limitaciones busca hacer el análisis comprensible y revisable por el equipo y las personas responsables.
+El modelo sin esas variables no es uniformemente más justo: mantiene un F1 similar y reduce las brechas de género y área, pero aumenta las de estrato y naturaleza del colegio. Por ello, estos resultados no bastan para declarar una alternativa superior ni para recomendar su despliegue. Antes de cualquier uso, el equipo debe acordar qué disparidades y errores son aceptables, evaluar mitigaciones y validar el resultado con personas responsables y grupos afectados. En ningún caso el modelo debe utilizarse para tomar decisiones individuales automatizadas. La documentación de variables, definición del objetivo, métricas y limitaciones busca hacer el análisis comprensible y revisable.
 
 ## 7. Recomendaciones de uso responsable
 
