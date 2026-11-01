@@ -39,6 +39,41 @@ falsos positivos en los grupos sensibles.
 
 La validación cruzada de 5 particiones sobre train y validación confirma la selección ([`reports/analisis_modelo.md`](../../reports/analisis_modelo.md)): logreg obtiene F1 de 0,5164 ± 0,0038 y ROC-AUC de 0,7575 ± 0,0034; el árbol, F1 de 0,5055 ± 0,0037 y ROC-AUC de 0,7425 ± 0,0041.
 
+### Resultados finales en test
+
+La siguiente tabla reproduce las métricas de `reports/metrics.json`. El test se
+usa para esta evaluación final, no para seleccionar modelos ni ajustar
+hiperparámetros.
+
+| Modelo | Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| baseline | 0,7543 | 0,0000 | 0,0000 | 0,0000 | 0,5000 |
+| **logreg (seleccionado)** | 0,6604 | 0,3959 | 0,7267 | **0,5126** | **0,7539** |
+| tree | 0,6299 | 0,3736 | 0,7480 | 0,4983 | 0,7420 |
+
+La regresión logística alcanza mejor F1 y ROC-AUC que el árbol en test, aunque
+su recall es algo menor (0,7267 frente a 0,7480). El baseline predice la clase
+mayoritaria: por eso su accuracy es alta, pero no detecta ningún caso de riesgo.
+
+### Equidad y comparación sin variables sensibles
+
+Las brechas siguientes son la diferencia máxima de recall entre grupos de cada
+variable, calculada sobre test. La comparación y sus datos por grupo están en
+[`reports/equidad.md`](../../reports/equidad.md); la auditoría marca como
+hallazgo una brecha mayor a 0,10.
+
+| Modelo | F1 global en test | Brecha género | Brecha estrato | Brecha naturaleza del colegio | Brecha área |
+|---|---:|---:|---:|---:|---:|
+| Completo (`logreg`) | 0,5126 | 0,1359 | 0,4141 | 0,2393 | 0,1380 |
+| Sin variables sensibles | 0,5129 | 0,0158 | 0,4433 | 0,2487 | 0,0421 |
+
+Excluir las variables sensibles apenas cambia el F1 global (0,0003 puntos),
+reduce las brechas observadas para género y área, y aumenta las de estrato y
+naturaleza del colegio. Por tanto, quitarlas no elimina las disparidades: otras
+variables pueden conservar señales indirectas. Todas las brechas del modelo
+completo superan 0,10 y requieren cautela; estos resultados no justifican usar
+predicciones para decisiones individuales.
+
 ## Decisión
 Usar **regresión logística** (`LogisticRegression(max_iter=1000, class_weight="balanced")`) dentro de un `Pipeline` de scikit-learn. Tiene el mejor F1 y el mejor ROC-AUC en validación, y es el modelo más fácil de explicar.
 
