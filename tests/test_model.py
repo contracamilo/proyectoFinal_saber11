@@ -1,6 +1,12 @@
 """Pruebas de la capa de modelo con datos fabricados."""
+import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
+import pytest
+from sklearn.metrics import f1_score
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
@@ -9,7 +15,13 @@ from saber11.features.preprocessing import FEATURES, TARGET, build_preprocessor
 from saber11.models.analisis import PARTICIONES, importancia_variables, validar_cruzado
 from saber11.models.evaluate import evaluar_calibracion
 from saber11.models.fairness import MINIMO_POR_GRUPO, SIN_DATO, brecha_recall, metricas_por_grupo
-from saber11.models.train import ajustar_calibracion, calcular_metricas
+from saber11.models.train import (
+    _entrenar_modelos,
+    ajustar_calibracion,
+    calcular_metricas,
+)
+
+CLAVES_METRICAS = {"accuracy", "precision", "recall", "f1", "roc_auc"}
 
 
 def datos(n: int = 300) -> pd.DataFrame:
@@ -43,6 +55,72 @@ def test_calcular_metricas_devuelve_las_cinco_metricas():
     metricas = calcular_metricas(modelo, df)
     assert set(metricas) == {"accuracy", "precision", "recall", "f1", "roc_auc"}
     assert metricas["f1"] == 1.0
+
+
+def test_pipeline_predice_clases_binarias_y_probabilidades_validas():
+    df = datos()
+    modelo = modelo_entrenado(df)
+
+    predicciones = modelo.predict(df[FEATURES])
+    probabilidades = modelo.predict_proba(df[FEATURES])
+
+    assert set(np.unique(predicciones)).issubset({0, 1})
+    assert probabilidades.shape == (len(df), 2)
+    assert np.all((probabilidades >= 0) & (probabilidades <= 1))
+    assert np.allclose(probabilidades.sum(axis=1), 1)
+
+
+def test_modelo_seleccionado_supera_al_baseline_en_f1():
+    df = datos()
+    entrenamiento, validacion = train_test_split(
+        df,
+        test_size=0.25,
+        random_state=42,
+        stratify=df[TARGET],
+    )
+
+    metricas, nombre_seleccionado, candidatos = _entrenar_modelos(
+        entrenamiento,
+        validacion,
+        random_state=42,
+    )
+
+    assert nombre_seleccionado in {"logreg", "tree"}
+    assert metricas[nombre_seleccionado]["f1"] > metricas["baseline"]["f1"]
+    assert f1_score(
+        validacion[TARGET],
+        candidatos[nombre_seleccionado].predict(validacion[FEATURES]),
+    ) > f1_score(
+        validacion[TARGET],
+        candidatos["baseline"].predict(validacion[FEATURES]),
+    )
+
+
+def test_metrics_json_cumple_el_contrato_si_existe():
+    ruta = Path("reports/metrics.json")
+    if not ruta.is_file():
+        pytest.skip("reports/metrics.json aún no se ha generado.")
+
+    reporte = json.loads(ruta.read_text(encoding="utf-8"))
+    assert {"selected_model", "test", "confusion_matrix"} <= reporte.keys()
+    assert {"baseline", "logreg", "tree"} <= reporte["test"].keys()
+    for metricas in reporte["test"].values():
+        assert CLAVES_METRICAS <= metricas.keys()
+    assert len(reporte["confusion_matrix"]) == 2
+    assert all(len(fila) == 2 for fila in reporte["confusion_matrix"])
+
+
+def test_metricas_de_equidad_devuelven_una_fila_por_grupo():
+    df = datos()
+    modelo = modelo_entrenado(df)
+    tabla = metricas_por_grupo(
+        df[TARGET],
+        modelo.predict(df[FEATURES]),
+        df["cole_jornada"],
+    )
+
+    assert len(tabla) == df["cole_jornada"].nunique()
+    assert set(tabla["grupo"]) == set(df["cole_jornada"])
 
 
 def test_calibracion_corrige_puntajes_inflados():
