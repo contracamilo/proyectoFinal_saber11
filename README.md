@@ -226,7 +226,7 @@ Detalle completo (restricciones, 9 escenarios y tácticas) en [`docs/arquitectur
 | ADR | Decisión | Responsable | Estado |
 |---|---|---|---|
 | [001](docs/adr/0001-lenguaje-framework-estilo.md) | Python + FastAPI + arquitectura en capas | Camilo | Aceptada |
-| [002](docs/adr/0002-seleccion-modelo.md) | Regresión logística elegida por F1 en validación | Camilo | Aceptada |
+| [002](docs/adr/0002-seleccion-modelo.md) | Regresión logística elegida por F1 en validación | Richardo | Aceptada |
 | [003](docs/adr/0003-almacenamiento-despliegue.md) | SQLite + joblib + API en Render | Camilo | Aceptada |
 | [004](docs/adr/0004-separacion-datos.md) | Separación 70/15/15 estratificada, sin duplicados | Camilo | Aceptada |
 
@@ -488,4 +488,3 @@ Evidencias de cada etapa del workflow de ML, con las salidas reales de los coman
 | Equidad | [`reports/equidad.md`](reports/equidad.md), [`docs/analisis_etico.md`](docs/analisis_etico.md) |
 | Servicio | `src/saber11/api/`, [`reports/latencia.json`](reports/latencia.json), [`reports/latencia_render.json`](reports/latencia_render.json) |
 | Pruebas | `tests/` |
-

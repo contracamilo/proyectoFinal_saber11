@@ -2,7 +2,7 @@
 
 - **Estado:** Aceptada
 - **Fecha:** 2026-10-31
-- **Autor(es):** Camilo Rivera Quintero
+- **Autor(es):** Richardo Caicedo
 
 ## Contexto
 Hay que clasificar el riesgo de bajo desempeño (`punt_global` < 234) con un modelo básico de Machine Learning, usando solo variables previas a la prueba. Estos son los drivers que condicionan la decisión:
@@ -19,10 +19,17 @@ Hay que clasificar el riesgo de bajo desempeño (`punt_global` < 234) con un mod
 | **Regresión logística** con `class_weight="balanced"` | Coeficientes interpretables; rápida; da puntajes que se pueden calibrar; funciona bien con variables one-hot | Solo captura relaciones lineales; menor recall que el árbol en este caso |
 | Árbol de decisión (se probaron `max_depth` 3, 5, 8 y 12, y `min_samples_leaf` 20 y 50) | Reglas fáciles de leer si es poco profundo; captura interacciones | El mejor árbol tiene 321 hojas, por lo que deja de ser legible; más propenso al sobreajuste |
 | KNN | Sin entrenamiento | Predecir exige comparar contra todo train, lo que pone en riesgo el p95 < 300 ms; difícil de explicar |
+| Random Forest | Puede capturar interacciones y reducir la variabilidad de árboles individuales | Se descarta en esta primera versión por su menor interpretabilidad y mayor costo de cómputo frente a logística |
 | `DummyClassifier` (baseline) | Da el piso de comparación | No detecta casos de riesgo; no es candidato a producción |
 
 ## Criterios / métricas de evaluación
 Selección por **F1 de la clase 1 en validación**. Si la regresión logística queda a menos de 0,01 del mejor F1, se prefiere por su interpretabilidad.
+
+También se revisan el **recall de la clase 1** —para no dejar sin detectar
+demasiados casos que podrían requerir apoyo—, la interpretabilidad, el costo de
+entrenamiento y predicción, y la equidad observada mediante métricas por grupo.
+El desempeño agregado no sustituye la revisión de brechas de recall y tasas de
+falsos positivos en los grupos sensibles.
 
 | Modelo (validación) | Accuracy | Precision | Recall | F1 | ROC-AUC |
 |---|---|---|---|---|---|
