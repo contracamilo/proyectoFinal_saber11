@@ -340,8 +340,8 @@ El análisis completo está en [`docs/analisis_etico.md`](docs/analisis_etico.md
 |---|---|---|---|
 | R1 | Fuga de información (usar `punt_*` como entrada o repetir estudiantes entre conjuntos) | Alto: métricas infladas que no se sostienen en uso real. Con duplicados, el F1 en validación subía de 0,504 a 0,522 | Lista blanca `FEATURES`, `ValueError` ante prefijos prohibidos, duplicados eliminados antes de separar y preprocesamiento ajustado solo con train |
 | R2 | Desbalance de clases (24,57 % de clase 1) | Alto: un modelo trivial logra 75 % de accuracy sin detectar a nadie | Selección por F1, `class_weight="balanced"`, separación estratificada y comparación con baseline |
-| R3 | Sesgo socioeconómico / discriminación por variables *proxy* | Alto: brecha de recall de 0,41 por estrato y muchos falsos positivos en grupos vulnerables | Métricas por grupo, comparación sin variables sensibles y uso limitado a decisiones agregadas |
-| R4 | Sobreajuste del árbol de decisión | Medio: un árbol profundo memoriza train y pierde capacidad de generalizar | Límites de `max_depth` y `min_samples_leaf`, selección en validación y test intacto. Se eligió el modelo lineal |
+| R3 | Sesgo socioeconómico / discriminación por variables *proxy* | Alto: en test la brecha de recall alcanza 0,4141 por estrato; la tasa de falsos positivos es 0,7109 en estrato 1 y 0,5883 en colegios oficiales. Las cuatro variables sensibles superan la brecha de 0,10 | Reportar recall, falsos positivos y tamaños por grupo; comparar con el modelo sin variables sensibles (que reduce algunas brechas y aumenta otras); no usar para decisiones individuales y revisar mitigaciones con el equipo |
+| R4 | Sobreajuste / complejidad del árbol de decisión | Medio: el mejor árbol configurado llega a 321 hojas y obtiene F1 menor que logística en test (0,4983 vs 0,5126) y validación cruzada (0,5055 ± 0,0037 vs 0,5164 ± 0,0038); no se afirma sobreajuste solo por su profundidad | Limitar `max_depth` y `min_samples_leaf`, seleccionar con validación, contrastar con validación cruzada y reservar test para evaluación final; preferir logística en esta versión |
 | R5 | Volumen de datos y límites de la API | Medio: descargas lentas o fallidas | Paginación de 50.000 filas, 3 reintentos con timeout de 120 s y copia local en CSV y SQLite |
 
 ## 10. Cómo ejecutar
@@ -424,13 +424,11 @@ GitHub Actions ejecuta `pytest` en cada PR hacia `develop` ([`tests.yml`](.githu
 - **El sistema cumple sus criterios técnicos en local.** El p95 es de 43,95 ms, las entradas inválidas devuelven 422 y los resultados son reproducibles. En Render responde sin errores, pero con 10 clientes simultáneos el p95 sube a 1,27 s.
 
 ### Recomendaciones
-1. Quitar las variables sensibles si el sistema llega a usarse: el F1 no cae y se reducen las brechas de género y área.
-2. Agregar variables que describan mejor al estudiante, como su historial académico o la asistencia, si se obtienen con garantías de privacidad.
-3. Entrenar con varios periodos y validar con un periodo posterior.
-4. Probar el umbral de decisión por grupo o ajustarlo según el presupuesto de apoyo disponible.
-5. Probar modelos como Random Forest o Gradient Boosting, si se mantiene la explicabilidad.
-6. Separar por colegio para medir qué tan bien generaliza a colegios no vistos.
-7. Reportar resultados agregados por colegio o localidad, y no por estudiante.
+1. **Ampliar y validar los datos:** incorporar varios periodos y, si es posible, separar por colegio y evaluar en un periodo posterior. Añadir historial académico o asistencia solo si su uso tiene garantías de privacidad y justificación clara.
+2. **Revisar el umbral de decisión:** comparar alternativas según capacidad real de apoyo y consecuencias de falsos negativos y falsos positivos; medir de nuevo las métricas globales y por grupo antes de adoptar un cambio.
+3. **Investigar las brechas antes de elegir variables:** la variante sin variables sensibles reduce las brechas de género y área, pero aumenta las de estrato y naturaleza. No asumir que excluirlas resuelve el sesgo; documentar y validar cualquier mitigación.
+4. **Comparar otros modelos con controles de complejidad:** probar alternativas interpretables y, si se evalúan Random Forest u otros conjuntos de árboles, contrastar desempeño, costo, calibración y facilidad de explicación con la misma separación de datos.
+5. **Monitorear y comunicar de forma responsable:** revisar periódicamente desempeño, falsos positivos y brechas por grupo; publicar solo resultados agregados por colegio o localidad y mantener revisión humana. No usar predicciones para decisiones individuales.
 
 ## 13. Glosario
 | Término | Definición |
@@ -442,11 +440,15 @@ GitHub Actions ejecuta `pytest` en cada PR hacia `develop` ([`tests.yml`](.githu
 | Brecha de recall | Diferencia de recall entre el grupo con mayor y el de menor valor. |
 | C4 | Modelo para describir arquitectura en cuatro niveles: contexto, contenedores, componentes y código. |
 | Calibración | Ajuste que hace que una probabilidad coincida con la frecuencia real; de 100 casos con 30 %, unos 30 deben ser positivos. |
+| `class_weight="balanced"` | Opción que da más peso a la clase menos frecuente durante el entrenamiento; puede aumentar el recall y también las falsas alarmas. |
 | EDA | Análisis exploratorio de datos: revisar los datos antes de modelar. |
+| Equidad del modelo | Evaluación de errores y métricas entre grupos; una métrica global similar no garantiza resultados similares para todos. |
 | Error de Brier | Error cuadrático medio entre la probabilidad estimada y el resultado real; menor es mejor. |
 | Estratificación | Separar los datos conservando la misma proporción de clases en cada conjunto. |
 | F1 | Media armónica entre precision y recall. |
 | Fuga de información | Usar en el entrenamiento información que no estaría disponible al predecir. |
+| FN (falso negativo) | Caso realmente en riesgo que el modelo predice como sin riesgo; podría quedar sin apoyo. |
+| FP (falso positivo) | Caso realmente sin riesgo que el modelo predice como en riesgo; puede desviar recursos o estigmatizar. |
 | Idempotencia | Propiedad de una operación que, repetida, deja el mismo resultado. |
 | Importancia por permutación | Caída de una métrica al desordenar una variable; indica cuánto depende el modelo de ella. |
 | Matriz de confusión | Tabla que cruza valores reales y predichos: VP, FP, VN y FN. |
@@ -460,6 +462,8 @@ GitHub Actions ejecuta `pytest` en cada PR hacia `develop` ([`tests.yml`](.githu
 | Regresión logística | Modelo lineal que estima la probabilidad de una clase. |
 | ROC-AUC | Capacidad de ordenar positivos por encima de negativos; 0,5 equivale al azar. |
 | Sobreajuste | Cuando un modelo memoriza train y generaliza mal. |
+| VN (verdadero negativo) | Caso sin riesgo que el modelo predice correctamente como sin riesgo. |
+| VP (verdadero positivo) | Caso en riesgo que el modelo detecta correctamente. |
 | Validación cruzada | Repetir entrenamiento y evaluación en varias particiones para medir la estabilidad del resultado. |
 
 ## 14. Referencias
